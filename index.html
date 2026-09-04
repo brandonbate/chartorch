@@ -1,0 +1,35 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>netgui</title>
+  <link rel="stylesheet" href="css/styles.css">
+</head>
+<body data-mode="move">
+  <div id="toolbar">
+    <button type="button" id="btn-move" class="mode-btn active">Move</button>
+    <button type="button" id="btn-connect" class="mode-btn">Connect</button>
+    <div class="toolbar-sep"></div>
+    <div id="module-buttons"></div>
+  </div>
+  <div id="canvas">
+    <div id="workspace">
+      <svg id="edges" xmlns="http://www.w3.org/2000/svg">
+        <defs>
+          <marker id="arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+          <marker id="arrow-selected" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+            <path d="M 0 0 L 10 5 L 0 10 z"></path>
+          </marker>
+        </defs>
+      </svg>
+      <svg id="preview" xmlns="http://www.w3.org/2000/svg"></svg>
+      <div id="nodes"></div>
+      <div id="ghost" hidden></div>
+    </div>
+  </div>
+  <script type="module" src="js/main.js"></script>
+</body>
+</html>

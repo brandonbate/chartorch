@@ -1,0 +1,228 @@
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  font-family: "Segoe UI", system-ui, sans-serif;
+  color: #1b1b1b;
+  background: #f4f4f1;
+}
+
+body {
+  display: flex;
+  flex-direction: column;
+}
+
+#toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 10px;
+  background: #2c2c2c;
+  color: #fff;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.toolbar-sep {
+  width: 1px;
+  align-self: stretch;
+  background: #555;
+  margin: 2px 6px;
+}
+
+#module-buttons {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+#toolbar button {
+  appearance: none;
+  border: 1px solid #555;
+  background: #3a3a3a;
+  color: #fff;
+  padding: 6px 10px;
+  font: inherit;
+  font-size: 13px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#toolbar button:hover {
+  background: #4a4a4a;
+}
+
+#toolbar .mode-btn.active,
+#toolbar .module-btn.active {
+  background: #1a73e8;
+  border-color: #1a73e8;
+}
+
+#canvas {
+  flex: 1;
+  overflow: auto;
+  position: relative;
+  background-color: #f4f4f1;
+  background-image: radial-gradient(#d4d4ce 1px, transparent 1px);
+  background-size: 20px 20px;
+  cursor: default;
+}
+
+body[data-mode="connect"] #canvas {
+  cursor: crosshair;
+}
+
+body[data-placing="true"] #canvas {
+  cursor: copy;
+}
+
+#workspace {
+  position: relative;
+  min-width: 100%;
+  min-height: 100%;
+}
+
+#edges,
+#preview {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+  pointer-events: none;
+}
+
+#nodes {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+.node {
+  position: absolute;
+  width: 220px;
+  background: #fff;
+  border: 1.5px solid #222;
+  border-radius: 4px;
+  box-shadow: 2px 2px 0 rgba(0, 0, 0, 0.08);
+  user-select: none;
+  pointer-events: auto;
+  cursor: grab;
+}
+
+body[data-mode="connect"] .node {
+  cursor: crosshair;
+}
+
+.node.dragging {
+  cursor: grabbing;
+  z-index: 5;
+}
+
+.node.selected,
+#ghost.selected {
+  outline: 2px dashed #1a73e8;
+  outline-offset: 4px;
+}
+
+.node-title {
+  font-weight: 700;
+  font-size: 13px;
+  padding: 8px 10px 6px;
+  border-bottom: 1px solid #ddd;
+}
+
+.node-args {
+  padding: 6px 10px 8px;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+}
+
+.arg {
+  padding: 2px 0;
+  white-space: nowrap;
+}
+
+.arg-value {
+  color: #0b57d0;
+  cursor: text;
+}
+
+.arg-value input,
+.arg-value select {
+  font: inherit;
+  color: inherit;
+  max-width: 96px;
+  padding: 0 2px;
+  margin: 0;
+  border: 1px solid #1a73e8;
+  border-radius: 2px;
+  background: #fff;
+}
+
+#ghost {
+  position: absolute;
+  width: 220px;
+  background: #fff;
+  border: 1.5px dashed #222;
+  border-radius: 4px;
+  opacity: 0.55;
+  pointer-events: none;
+  z-index: 4;
+}
+
+#ghost .node-title {
+  font-weight: 700;
+  font-size: 13px;
+  padding: 8px 10px 6px;
+  border-bottom: 1px solid #ddd;
+}
+
+.edge-hit {
+  fill: none;
+  stroke: transparent;
+  stroke-width: 14;
+  pointer-events: stroke;
+}
+
+.edge-line {
+  fill: none;
+  stroke: #222;
+  stroke-width: 2;
+  pointer-events: none;
+}
+
+.edge.selected .edge-line {
+  stroke: #1a73e8;
+}
+
+.edge-marquee {
+  fill: none;
+  stroke: #1a73e8;
+  stroke-width: 1.5;
+  stroke-dasharray: 4 3;
+  pointer-events: none;
+}
+
+#arrow path {
+  fill: #222;
+}
+
+#arrow-selected path {
+  fill: #1a73e8;
+}
+
+#preview-line {
+  fill: none;
+  stroke: #1a73e8;
+  stroke-width: 2;
+  stroke-dasharray: 6 4;
+  pointer-events: none;
+}
