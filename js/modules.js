@@ -87,12 +87,16 @@ export const MODULES = {
   },
 };
 
-export function defaultArgs(type) {
+export function defaultsFrom(fields) {
   const args = {};
-  for (const field of MODULES[type].args) {
+  for (const field of fields) {
     args[field.name] = field.default;
   }
   return args;
+}
+
+export function defaultArgs(type) {
+  return defaultsFrom(MODULES[type].args);
 }
 
 export function getField(type, name) {
@@ -103,6 +107,14 @@ export function formatValue(field, value) {
   if (value === true) return "True";
   if (value === false) return "False";
   if (value === null) return "None";
+  return String(value);
+}
+
+export function pythonValue(field, value) {
+  if (value === true) return "True";
+  if (value === false) return "False";
+  if (value === null) return "None";
+  if (field.type === "enum") return `'${value}'`;
   return String(value);
 }
 
@@ -132,6 +144,23 @@ export function parseValue(field, text) {
       if (/^-?\d+$/.test(t)) return parseInt(t, 10);
       if (/^\(\s*-?\d+\s*(,\s*-?\d+\s*)*,?\s*\)$/.test(t)) return t;
       return undefined;
+    }
+    case "boolOrNone": {
+      if (t === "None" || t === "none") return null;
+      if (t === "True" || t === "true") return true;
+      if (t === "False" || t === "false") return false;
+      return undefined;
+    }
+    case "floatTuple": {
+      if (/^\(\s*-?\d*\.?\d+(?:e[+-]?\d+)?\s*(,\s*-?\d*\.?\d+(?:e[+-]?\d+)?\s*)+\)$/i.test(t)) {
+        return t;
+      }
+      return undefined;
+    }
+    case "noneOrExpr": {
+      if (t === "None" || t === "none") return null;
+      if (t.length === 0) return undefined;
+      return t;
     }
     default:
       return undefined;

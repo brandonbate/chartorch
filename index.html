@@ -16,6 +16,22 @@
     <button type="button" id="btn-generate">Generate</button>
   </div>
   <div id="stage">
+    <aside id="settings-panel">
+      <div class="panel-body">
+        <h2>Optimizer</h2>
+        <select id="optimizer-type"></select>
+        <div id="optimizer-args" class="setting-args"></div>
+        <h2>Loss</h2>
+        <select id="loss-type"></select>
+        <div id="loss-args" class="setting-args"></div>
+        <h2>Training</h2>
+        <div class="setting-arg">
+          <span class="arg-name">epochs</span> =
+          <input id="epochs-input" type="text">
+        </div>
+      </div>
+      <div class="resize-handle resize-handle-right" id="settings-resize"></div>
+    </aside>
     <div id="canvas">
       <div id="workspace">
         <svg id="edges" xmlns="http://www.w3.org/2000/svg">
@@ -34,6 +50,7 @@
       </div>
     </div>
     <aside id="generate-panel" hidden>
+      <div class="resize-handle resize-handle-left" id="generate-resize"></div>
       <div class="panel-header">
         <span>Generated code</span>
         <button type="button" id="panel-close">Close</button>
