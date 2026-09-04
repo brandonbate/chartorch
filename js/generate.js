@@ -87,6 +87,21 @@ export function initGenerate() {
     }
     textarea.value = toPython(path);
     panel.hidden = false;
+    fetch("/api/generate", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        nodes: state.nodes,
+        edges: state.edges,
+        training: {
+          optimizer: training.optimizer,
+          optimizerArgs: training.optimizerArgs,
+          loss: training.loss,
+          lossArgs: training.lossArgs,
+          epochs: training.epochs,
+        },
+      }),
+    }).catch(() => {});
   });
 
   document.getElementById("panel-close").addEventListener("click", () => {
