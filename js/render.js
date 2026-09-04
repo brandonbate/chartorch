@@ -109,7 +109,6 @@ export function renderEdges() {
       line.classList.add("edge-line");
       const marquee = document.createElementNS("http://www.w3.org/2000/svg", "rect");
       marquee.classList.add("edge-marquee");
-      marquee.setAttribute("hidden", "");
       g.append(hit, line, marquee);
       edgesSvg.appendChild(g);
     }
@@ -122,13 +121,10 @@ export function renderEdges() {
     const marquee = g.querySelector(".edge-marquee");
     if (selected) {
       const box = boundsOf(pts, 8);
-      marquee.removeAttribute("hidden");
       marquee.setAttribute("x", box.x);
       marquee.setAttribute("y", box.y);
       marquee.setAttribute("width", box.w);
       marquee.setAttribute("height", box.h);
-    } else {
-      marquee.setAttribute("hidden", "");
     }
   }
   for (const g of [...edgesSvg.querySelectorAll("g.edge")]) {
