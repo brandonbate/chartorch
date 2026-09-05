@@ -18,7 +18,9 @@ def start(script):
     global _proc, _workdir, _reader
     with _lock:
         _stop()
-        workdir = Path(tempfile.mkdtemp(prefix="netgui-run-"))
+        run_root = ROOT / "run"
+        run_root.mkdir(exist_ok=True)
+        workdir = Path(tempfile.mkdtemp(prefix="netgui-run-", dir=run_root))
         script_path = workdir / "train.py"
         script_path.write_text(script, encoding="utf-8")
         data_dir = ROOT / "data"
@@ -42,9 +44,11 @@ def start(script):
             str(workdir),
             "--bindmount",
             f"{data_dir}:{workdir / 'data'}",
-            "--bindmount",
+            "--tmpfsmount",
             "/tmp",
             "--keep_env",
+            "--env",
+            "HOME=/tmp",
             "--",
             sys.executable,
             "-u",
