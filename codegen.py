@@ -234,7 +234,8 @@ def to_python(payload):
     )
     layer_block = ",\n".join(layers)
 
-    return f"""import torch
+    return f"""import json
+import torch
 import torch.nn as nn
 
 {snippet}
@@ -263,5 +264,14 @@ for epoch in range(epochs):
         running += loss.item()
         n += 1
     if n:
-        print(f"epoch {{epoch + 1}}/{{epochs}} loss {{running / n}}", flush=True)
+        _loss = running / n
+        print(f"epoch {{epoch + 1}}/{{epochs}} loss {{_loss}}", flush=True)
+        with open("metrics.jsonl", "a", encoding="utf-8") as _f:
+            _f.write(json.dumps({{"epoch": epoch + 1, "loss": _loss}}) + "\\n")
+            _f.flush()
+
+torch.set_printoptions(threshold=float("inf"), linewidth=120)
+with open("params.txt", "w", encoding="utf-8") as _f:
+    for _name, _param in model.named_parameters():
+        _f.write(f"{{_name}} {{tuple(_param.shape)}}\\n{{_param.detach().cpu()}}\\n\\n")
 """

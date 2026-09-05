@@ -411,8 +411,22 @@ body[data-mode="connect"] .node {
   cursor: pointer;
 }
 
-#generate-panel button:hover {
+#generate-panel button:hover:not(:disabled) {
   background: #4a4a4a;
+}
+
+#generate-panel button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+#loss-chart-wrap {
+  flex: 0 0 180px;
+  height: 180px;
+}
+
+#loss-chart-wrap[hidden] {
+  display: none;
 }
 
 #generated-code {

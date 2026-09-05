@@ -5,6 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>netgui</title>
   <link rel="stylesheet" href="css/styles.css">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 </head>
 <body data-mode="move" data-panel-mode="data">
   <div id="toolbar">
@@ -78,6 +79,10 @@
         <button type="button" id="panel-close">Close</button>
       </div>
       <textarea id="generated-code" readonly></textarea>
+      <button type="button" id="btn-train" disabled>Train</button>
+      <div id="loss-chart-wrap" hidden>
+        <canvas id="loss-chart"></canvas>
+      </div>
       <button type="button" id="btn-copy">Copy</button>
     </aside>
   </div>

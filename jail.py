@@ -1,3 +1,4 @@
+import json
 import os
 import shutil
 import subprocess
@@ -12,17 +13,44 @@ _lock = threading.Lock()
 _proc = None
 _workdir = None
 _reader = None
+_script = None
+_epochs = None
+_done = False
+_exit_code = None
+_params_printed = False
 
 
-def start(script):
-    global _proc, _workdir, _reader
+def remember(script, epochs):
+    global _script, _epochs
+    _script = script
+    _epochs = epochs
+
+
+def has_script():
+    return _script is not None
+
+
+def is_running():
+    return _proc is not None and _proc.poll() is None
+
+
+def stored_epochs():
+    return _epochs
+
+
+def start():
+    global _proc, _workdir, _reader, _done, _exit_code, _params_printed
     with _lock:
+        if _script is None:
+            return "no_script"
+        if _proc is not None and _proc.poll() is None:
+            return "running"
         _stop()
         run_root = ROOT / "run"
         run_root.mkdir(exist_ok=True)
         workdir = Path(tempfile.mkdtemp(prefix="netgui-run-", dir=run_root))
         script_path = workdir / "train.py"
-        script_path.write_text(script, encoding="utf-8")
+        script_path.write_text(_script, encoding="utf-8")
         data_dir = ROOT / "data"
         data_dir.mkdir(exist_ok=True)
         (workdir / "data").mkdir(exist_ok=True)
@@ -54,6 +82,9 @@ def start(script):
             "-u",
             str(script_path),
         ]
+        _done = False
+        _exit_code = None
+        _params_printed = False
         try:
             _proc = subprocess.Popen(
                 cmd,
@@ -68,18 +99,71 @@ def start(script):
             _proc = None
             _workdir = None
             _reader = None
-            return
+            _done = True
+            _exit_code = -1
+            return "failed"
         _workdir = workdir
         _reader = threading.Thread(target=_pump, args=(_proc,), daemon=True)
         _reader.start()
         print("nsjail started", flush=True)
+        return "ok"
+
+
+def status():
+    with _lock:
+        running = _proc is not None and _proc.poll() is None
+        return {
+            "running": running,
+            "points": _read_metrics(),
+            "done": _done and not running,
+            "exit_code": _exit_code,
+            "epochs": _epochs,
+        }
+
+
+def _read_metrics():
+    if _workdir is None:
+        return []
+    path = _workdir / "metrics.jsonl"
+    if not path.is_file():
+        return []
+    points = []
+    for line in path.read_text(encoding="utf-8").splitlines():
+        line = line.strip()
+        if not line:
+            continue
+        try:
+            obj = json.loads(line)
+        except json.JSONDecodeError:
+            continue
+        if not isinstance(obj, dict):
+            continue
+        epoch = obj.get("epoch")
+        loss = obj.get("loss")
+        if isinstance(epoch, int) and isinstance(loss, (int, float)):
+            points.append({"epoch": epoch, "loss": loss})
+    return points
+
+
+def _print_params():
+    global _params_printed
+    if _params_printed or _workdir is None:
+        return
+    path = _workdir / "params.txt"
+    if path.is_file():
+        print(path.read_text(encoding="utf-8"), end="", flush=True)
+    _params_printed = True
 
 
 def _pump(proc):
+    global _done, _exit_code
     if proc.stdout is not None:
         for line in proc.stdout:
             print(line, end="", flush=True)
     code = proc.wait()
+    _print_params()
+    _exit_code = code
+    _done = True
     print(f"nsjail exited {code}", flush=True)
 
 

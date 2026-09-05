@@ -5,6 +5,11 @@ import { dataState } from "./data.js";
 
 const INVALID_MSG = "the network architecture is invalid";
 const GENERATE_FAIL_MSG = "failed to generate code";
+const TRAIN_FAIL_MSG = "failed to start training";
+
+let trainBusy = false;
+let pollTimer = null;
+let lossChart = null;
 
 export function linearPath() {
   const nodes = Object.values(state.nodes);
@@ -30,6 +35,7 @@ export function linearPath() {
 export function initGenerate() {
   const panel = document.getElementById("generate-panel");
   const textarea = document.getElementById("generated-code");
+  const btnTrain = document.getElementById("btn-train");
 
   document.getElementById("btn-generate").addEventListener("click", () => {
     closeEditor(true);
@@ -66,9 +72,30 @@ export function initGenerate() {
         if (!payload || typeof payload.code !== "string") throw new Error();
         textarea.value = payload.code;
         panel.hidden = false;
+        setTrainEnabled();
       })
       .catch(() => {
         window.alert(GENERATE_FAIL_MSG);
+      });
+  });
+
+  btnTrain.addEventListener("click", () => {
+    if (trainBusy || !textarea.value) return;
+    trainBusy = true;
+    setTrainEnabled();
+    fetch("/api/train", { method: "POST" })
+      .then(async (r) => {
+        if (!r.ok) throw new Error();
+        const payload = await r.json();
+        const epochs = payload.epochs;
+        if (!Number.isInteger(epochs) || epochs < 1) throw new Error();
+        initChart(epochs);
+        startPoll();
+      })
+      .catch(() => {
+        trainBusy = false;
+        setTrainEnabled();
+        window.alert(TRAIN_FAIL_MSG);
       });
   });
 
@@ -85,4 +112,101 @@ export function initGenerate() {
       document.execCommand("copy");
     }
   });
+}
+
+function setTrainEnabled() {
+  const btn = document.getElementById("btn-train");
+  const textarea = document.getElementById("generated-code");
+  btn.disabled = trainBusy || !textarea.value;
+}
+
+function initChart(epochs) {
+  const wrap = document.getElementById("loss-chart-wrap");
+  const canvas = document.getElementById("loss-chart");
+  wrap.hidden = false;
+  if (lossChart) lossChart.destroy();
+  const labels = Array.from({ length: epochs }, (_, i) => i + 1);
+  lossChart = new window.Chart(canvas, {
+    type: "line",
+    data: {
+      labels,
+      datasets: [
+        {
+          data: Array(epochs).fill(null),
+          spanGaps: true,
+          showLine: true,
+          pointRadius: 3,
+          borderColor: "#333",
+          backgroundColor: "#333",
+        },
+      ],
+    },
+    options: {
+      animation: false,
+      maintainAspectRatio: false,
+      scales: {
+        x: { ticks: { stepSize: 1, autoSkip: false } },
+        y: {},
+      },
+      plugins: {
+        legend: { display: false },
+        tooltip: {
+          callbacks: {
+            title: () => "",
+            label: (ctx) => `(${ctx.label}, ${ctx.parsed.y})`,
+          },
+        },
+      },
+    },
+  });
+}
+
+function applyPoints(points) {
+  if (!lossChart) return;
+  const data = lossChart.data.datasets[0].data;
+  let min = Infinity;
+  let max = -Infinity;
+  for (const p of points) {
+    const i = p.epoch - 1;
+    if (i >= 0 && i < data.length) data[i] = p.loss;
+    if (typeof p.loss === "number") {
+      min = Math.min(min, p.loss);
+      max = Math.max(max, p.loss);
+    }
+  }
+  if (min !== Infinity) {
+    const pad = min === max ? Math.abs(min) * 0.1 || 0.1 : (max - min) * 0.1;
+    lossChart.options.scales.y.min = min - pad;
+    lossChart.options.scales.y.max = max + pad;
+  }
+  lossChart.update();
+}
+
+function startPoll() {
+  stopPoll();
+  const tick = () => {
+    fetch("/api/train/status")
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
+      .then((s) => {
+        applyPoints(s.points || []);
+        if (s.done) {
+          stopPoll();
+          trainBusy = false;
+          setTrainEnabled();
+        }
+      })
+      .catch(() => {});
+  };
+  tick();
+  pollTimer = setInterval(tick, 400);
+}
+
+function stopPoll() {
+  if (pollTimer !== null) {
+    clearInterval(pollTimer);
+    pollTimer = null;
+  }
 }
