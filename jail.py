@@ -11,10 +11,11 @@ ROOT = Path(__file__).resolve().parent
 _lock = threading.Lock()
 _proc = None
 _workdir = None
+_reader = None
 
 
 def start(script):
-    global _proc, _workdir
+    global _proc, _workdir, _reader
     with _lock:
         _stop()
         workdir = Path(tempfile.mkdtemp(prefix="netgui-run-"))
@@ -26,7 +27,6 @@ def start(script):
         cmd = [
             "nsjail",
             "-Mo",
-            "-Q",
             "--chroot",
             "/",
             "--disable_rlimits",
@@ -47,28 +47,54 @@ def start(script):
             "--keep_env",
             "--",
             sys.executable,
+            "-u",
             str(script_path),
         ]
         try:
-            _proc = subprocess.Popen(cmd)
-            _workdir = workdir
+            _proc = subprocess.Popen(
+                cmd,
+                stdout=subprocess.PIPE,
+                stderr=subprocess.STDOUT,
+                text=True,
+                bufsize=1,
+            )
         except OSError as e:
             print(f"failed to start nsjail: {e}", flush=True)
             shutil.rmtree(workdir, ignore_errors=True)
             _proc = None
             _workdir = None
+            _reader = None
+            return
+        _workdir = workdir
+        _reader = threading.Thread(target=_pump, args=(_proc,), daemon=True)
+        _reader.start()
+        print("nsjail started", flush=True)
+
+
+def _pump(proc):
+    if proc.stdout is not None:
+        for line in proc.stdout:
+            print(line, end="", flush=True)
+    code = proc.wait()
+    print(f"nsjail exited {code}", flush=True)
 
 
 def _stop():
-    global _proc, _workdir
-    if _proc is not None and _proc.poll() is None:
-        _proc.terminate()
-        try:
-            _proc.wait(timeout=2)
-        except subprocess.TimeoutExpired:
-            _proc.kill()
-            _proc.wait()
+    global _proc, _workdir, _reader
+    if _proc is not None:
+        if _proc.poll() is None:
+            _proc.terminate()
+            try:
+                _proc.wait(timeout=2)
+            except subprocess.TimeoutExpired:
+                _proc.kill()
+                _proc.wait()
+        if _reader is not None:
+            _reader.join(timeout=2)
+        if _proc.stdout is not None:
+            _proc.stdout.close()
     _proc = None
+    _reader = None
     if _workdir is not None:
         shutil.rmtree(_workdir, ignore_errors=True)
         _workdir = None
