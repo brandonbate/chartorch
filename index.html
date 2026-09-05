@@ -6,8 +6,11 @@
   <title>netgui</title>
   <link rel="stylesheet" href="css/styles.css">
 </head>
-<body data-mode="move">
+<body data-mode="move" data-panel-mode="data">
   <div id="toolbar">
+    <button type="button" id="btn-data" class="mode-btn active">Data</button>
+    <button type="button" id="btn-training" class="mode-btn">Training</button>
+    <div class="toolbar-sep"></div>
     <button type="button" id="btn-move" class="mode-btn active">Move</button>
     <button type="button" id="btn-connect" class="mode-btn">Connect</button>
     <div class="toolbar-sep"></div>
@@ -17,7 +20,26 @@
   </div>
   <div id="stage">
     <aside id="settings-panel">
-      <div class="panel-body">
+      <div class="panel-body" id="data-panel">
+        <h2>Dataset</h2>
+        <select id="dataset-type"></select>
+        <div id="dataset-sample">
+          <div id="dataset-media"></div>
+          <div id="dataset-label"></div>
+          <div id="dataset-nav">
+            <button type="button" id="dataset-prev">Prev</button>
+            <button type="button" id="dataset-next">Next</button>
+          </div>
+          <div class="setting-arg">
+            <span class="arg-name">index</span> =
+            <input id="dataset-index" type="text" value="0">
+          </div>
+          <div id="dataset-size"></div>
+          <div id="dataset-input-shape"></div>
+          <div id="dataset-label-shape"></div>
+        </div>
+      </div>
+      <div class="panel-body" id="training-panel" hidden>
         <h2>Optimizer</h2>
         <select id="optimizer-type"></select>
         <div id="optimizer-args" class="setting-args"></div>

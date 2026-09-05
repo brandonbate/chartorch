@@ -1,9 +1,10 @@
 import { incoming, outgoing, state } from "./model.js";
-import { MODULES, pythonValue } from "./modules.js";
 import { closeEditor } from "./render.js";
-import { LOSSES, OPTIMIZERS, training } from "./training.js";
+import { training } from "./training.js";
+import { dataState } from "./data.js";
 
 const INVALID_MSG = "the network architecture is invalid";
+const GENERATE_FAIL_MSG = "failed to generate code";
 
 export function linearPath() {
   const nodes = Object.values(state.nodes);
@@ -26,54 +27,6 @@ export function linearPath() {
   return path;
 }
 
-export function toPython(path) {
-  const layers = path.map((node) => {
-    const fields = MODULES[node.type].args;
-    if (fields.length === 0) return `    nn.${node.type}()`;
-    const args = fields
-      .map((field) => `${field.name}=${pythonValue(field, node.args[field.name])}`)
-      .join(", ");
-    return `    nn.${node.type}(${args})`;
-  });
-
-  const opt = OPTIMIZERS[training.optimizer];
-  const optArgs = opt.args
-    .map((field) => `    ${field.name}=${pythonValue(field, training.optimizerArgs[field.name])}`)
-    .join(",\n");
-
-  const loss = LOSSES[training.loss];
-  const lossArgs = loss.args
-    .map((field) => `${field.name}=${pythonValue(field, training.lossArgs[field.name])}`)
-    .join(", ");
-
-  return `import torch
-import torch.nn as nn
-
-model = nn.Sequential(
-${layers.join(",\n")},
-)
-
-criterion = nn.${loss.className}(${lossArgs})
-optimizer = torch.optim.${opt.className}(
-    model.parameters(),
-${optArgs},
-)
-
-# TODO: provide a DataLoader named dataloader
-# dataloader = ...
-
-epochs = ${training.epochs}
-model.train()
-for epoch in range(epochs):
-    for inputs, targets in dataloader:
-        optimizer.zero_grad()
-        outputs = model(inputs)
-        loss = criterion(outputs, targets)
-        loss.backward()
-        optimizer.step()
-`;
-}
-
 export function initGenerate() {
   const panel = document.getElementById("generate-panel");
   const textarea = document.getElementById("generated-code");
@@ -85,8 +38,6 @@ export function initGenerate() {
       window.alert(INVALID_MSG);
       return;
     }
-    textarea.value = toPython(path);
-    panel.hidden = false;
     fetch("/api/generate", {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -100,8 +51,25 @@ export function initGenerate() {
           lossArgs: training.lossArgs,
           epochs: training.epochs,
         },
+        dataset: dataState.dataset,
       }),
-    }).catch(() => {});
+    })
+      .then(async (r) => {
+        if (!r.ok) {
+          if (r.status === 400) {
+            window.alert(INVALID_MSG);
+            return;
+          }
+          throw new Error();
+        }
+        const payload = await r.json();
+        if (!payload || typeof payload.code !== "string") throw new Error();
+        textarea.value = payload.code;
+        panel.hidden = false;
+      })
+      .catch(() => {
+        window.alert(GENERATE_FAIL_MSG);
+      });
   });
 
   document.getElementById("panel-close").addEventListener("click", () => {

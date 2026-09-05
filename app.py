@@ -3,6 +3,7 @@ from pathlib import Path
 from flask import Flask, abort, request, send_from_directory
 
 from codegen import to_python
+from dataset_store import list_datasets, preview_payload
 
 ROOT = Path(__file__).resolve().parent
 app = Flask(__name__)
@@ -23,6 +24,24 @@ def js(filename):
     return send_from_directory(ROOT / "js", filename)
 
 
+@app.get("/api/datasets")
+def datasets():
+    return {"datasets": list_datasets()}
+
+
+@app.get("/api/preview/<dataset_id>")
+def preview(dataset_id):
+    raw = request.args.get("index", "0")
+    try:
+        index = int(raw)
+    except (TypeError, ValueError):
+        index = 0
+    payload = preview_payload(dataset_id, index)
+    if payload is None:
+        abort(404)
+    return payload
+
+
 @app.post("/api/generate")
 def generate():
     payload = request.get_json(silent=True)
@@ -32,7 +51,7 @@ def generate():
     if script is None:
         abort(400)
     print(script, flush=True)
-    return ("", 204)
+    return {"code": script}
 
 
 if __name__ == "__main__":

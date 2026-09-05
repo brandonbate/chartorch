@@ -1,3 +1,5 @@
+from dataset_store import dataloader_snippet
+
 MODULES = {
     "Linear": [
         {"name": "in_features", "type": "int"},
@@ -190,6 +192,9 @@ def to_python(payload):
     nodes = payload.get("nodes") or {}
     edges = payload.get("edges") or {}
     training = payload.get("training") or {}
+    snippet = dataloader_snippet(payload.get("dataset"))
+    if snippet is None:
+        return None
     path = linear_path(nodes, edges)
     if path is None:
         return None
@@ -232,6 +237,8 @@ def to_python(payload):
     return f"""import torch
 import torch.nn as nn
 
+{snippet}
+
 model = nn.Sequential(
 {layer_block},
 )
@@ -241,9 +248,6 @@ optimizer = torch.optim.{opt['className']}(
     model.parameters(),
 {opt_args},
 )
-
-# TODO: provide a DataLoader named dataloader
-# dataloader = ...
 
 epochs = {epochs}
 model.train()

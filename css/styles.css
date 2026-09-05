@@ -102,12 +102,68 @@ body {
 }
 
 #optimizer-type,
-#loss-type {
+#loss-type,
+#dataset-type {
   width: 100%;
   font: inherit;
   font-size: 13px;
   padding: 4px 6px;
   margin-bottom: 6px;
+}
+
+#dataset-sample {
+  margin-top: 12px;
+}
+
+#dataset-media img {
+  display: block;
+  width: 100%;
+  max-width: 220px;
+  background: #111;
+  image-rendering: pixelated;
+  image-rendering: crisp-edges;
+}
+
+#dataset-media audio {
+  display: block;
+  width: 100%;
+}
+
+#dataset-nav {
+  display: flex;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+#dataset-nav button {
+  appearance: none;
+  border: 1px solid #555;
+  background: #3a3a3a;
+  color: #fff;
+  padding: 4px 10px;
+  font: inherit;
+  font-size: 12px;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+#dataset-nav button:hover:not(:disabled) {
+  background: #4a4a4a;
+}
+
+#dataset-nav button:disabled {
+  opacity: 0.45;
+  cursor: default;
+}
+
+#dataset-label,
+#dataset-size,
+#dataset-input-shape,
+#dataset-label-shape {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  margin-top: 8px;
+  white-space: pre-wrap;
 }
 
 .setting-arg {
