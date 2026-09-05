@@ -11,22 +11,22 @@ export function initData() {
   const sel = document.getElementById("dataset-type");
   const dataPanel = document.getElementById("data-panel");
   const trainingPanel = document.getElementById("training-panel");
-  const btnData = document.getElementById("btn-data");
-  const btnTraining = document.getElementById("btn-training");
+  const tabData = document.getElementById("tab-data");
+  const tabTraining = document.getElementById("tab-training");
   const btnPrev = document.getElementById("dataset-prev");
   const btnNext = document.getElementById("dataset-next");
   const indexInput = document.getElementById("dataset-index");
 
   const setPanelMode = (mode) => {
     document.body.dataset.panelMode = mode;
-    btnData.classList.toggle("active", mode === "data");
-    btnTraining.classList.toggle("active", mode === "training");
+    tabData.classList.toggle("active", mode === "data");
+    tabTraining.classList.toggle("active", mode === "training");
     dataPanel.hidden = mode !== "data";
     trainingPanel.hidden = mode !== "training";
   };
 
-  btnData.addEventListener("click", () => setPanelMode("data"));
-  btnTraining.addEventListener("click", () => setPanelMode("training"));
+  tabData.addEventListener("click", () => setPanelMode("data"));
+  tabTraining.addEventListener("click", () => setPanelMode("training"));
 
   sel.addEventListener("change", () => {
     dataState.dataset = sel.value;

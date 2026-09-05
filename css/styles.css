@@ -395,11 +395,57 @@ body[data-mode="connect"] .node {
   display: flex;
   align-items: center;
   justify-content: space-between;
+  gap: 8px;
   font-weight: 700;
   font-size: 13px;
 }
 
-#generate-panel button {
+.panel-tabs {
+  display: flex;
+  flex-shrink: 0;
+  border-bottom: 1px solid #ccc;
+}
+
+#settings-panel > .panel-tabs {
+  padding: 0 8px;
+}
+
+#generate-panel .panel-tabs {
+  border-bottom: none;
+}
+
+.tab-btn {
+  appearance: none;
+  border: none;
+  border-bottom: 2px solid transparent;
+  background: transparent;
+  color: #333;
+  padding: 8px 14px;
+  font: inherit;
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.tab-btn.active {
+  border-bottom-color: #1a73e8;
+  font-weight: 700;
+}
+
+.tab-page {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.tab-page[hidden] {
+  display: none;
+}
+
+#generate-panel #panel-close,
+#generate-panel #btn-copy,
+#generate-panel #btn-train {
   appearance: none;
   border: 1px solid #555;
   background: #3a3a3a;
@@ -411,18 +457,20 @@ body[data-mode="connect"] .node {
   cursor: pointer;
 }
 
-#generate-panel button:hover:not(:disabled) {
+#generate-panel #panel-close:hover,
+#generate-panel #btn-copy:hover,
+#generate-panel #btn-train:hover:not(:disabled) {
   background: #4a4a4a;
 }
 
-#generate-panel button:disabled {
+#generate-panel #btn-train:disabled {
   opacity: 0.45;
   cursor: default;
 }
 
 #loss-chart-wrap {
-  flex: 0 0 180px;
-  height: 180px;
+  flex: 1;
+  min-height: 180px;
 }
 
 #loss-chart-wrap[hidden] {
@@ -431,13 +479,35 @@ body[data-mode="connect"] .node {
 
 #generated-code {
   flex: 1;
+  min-height: 0;
+  margin: 0;
+  overflow: auto;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  line-height: 1.45;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  background: #f7f7f4;
+}
+
+#generated-code code {
+  font-family: inherit;
+  font-size: inherit;
+}
+
+#traceback {
+  flex: 0 0 140px;
   resize: none;
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
   line-height: 1.45;
-  padding: 10px;
-  border: 1px solid #ccc;
+  padding: 8px;
+  border: 1px solid #c44;
   border-radius: 4px;
-  background: #f7f7f4;
+  background: #fff6f6;
   color: #1b1b1b;
+}
+
+#traceback[hidden] {
+  display: none;
 }

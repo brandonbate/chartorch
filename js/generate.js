@@ -7,6 +7,7 @@ const INVALID_MSG = "the network architecture is invalid";
 const GENERATE_FAIL_MSG = "failed to generate code";
 const TRAIN_FAIL_MSG = "failed to start training";
 
+let generatedCode = "";
 let trainBusy = false;
 let pollTimer = null;
 let lossChart = null;
@@ -34,7 +35,6 @@ export function linearPath() {
 
 export function initGenerate() {
   const panel = document.getElementById("generate-panel");
-  const textarea = document.getElementById("generated-code");
   const btnTrain = document.getElementById("btn-train");
 
   document.getElementById("btn-generate").addEventListener("click", () => {
@@ -70,7 +70,10 @@ export function initGenerate() {
         }
         const payload = await r.json();
         if (!payload || typeof payload.code !== "string") throw new Error();
-        textarea.value = payload.code;
+        generatedCode = payload.code;
+        setCode(generatedCode);
+        showTraceback("");
+        setRightTab("code");
         panel.hidden = false;
         setTrainEnabled();
       })
@@ -79,10 +82,14 @@ export function initGenerate() {
       });
   });
 
+  document.getElementById("tab-code").addEventListener("click", () => setRightTab("code"));
+  document.getElementById("tab-train").addEventListener("click", () => setRightTab("train"));
+
   btnTrain.addEventListener("click", () => {
-    if (trainBusy || !textarea.value) return;
+    if (trainBusy || !generatedCode) return;
     trainBusy = true;
     setTrainEnabled();
+    showTraceback("");
     fetch("/api/train", { method: "POST" })
       .then(async (r) => {
         if (!r.ok) throw new Error();
@@ -104,20 +111,67 @@ export function initGenerate() {
   });
 
   document.getElementById("btn-copy").addEventListener("click", async () => {
-    const text = textarea.value;
+    const text = generatedCode;
     try {
       await navigator.clipboard.writeText(text);
     } catch {
-      textarea.select();
+      const ta = document.createElement("textarea");
+      ta.value = text;
+      document.body.appendChild(ta);
+      ta.select();
       document.execCommand("copy");
+      ta.remove();
     }
   });
 }
 
+function setRightTab(name) {
+  document.getElementById("tab-code").classList.toggle("active", name === "code");
+  document.getElementById("tab-train").classList.toggle("active", name === "train");
+  document.getElementById("code-tab").hidden = name !== "code";
+  document.getElementById("train-tab").hidden = name !== "train";
+  if (name === "train" && lossChart) lossChart.resize();
+}
+
 function setTrainEnabled() {
-  const btn = document.getElementById("btn-train");
-  const textarea = document.getElementById("generated-code");
-  btn.disabled = trainBusy || !textarea.value;
+  document.getElementById("btn-train").disabled = trainBusy || !generatedCode;
+}
+
+function setCode(script) {
+  const pre = document.getElementById("generated-code");
+  const code = pre.querySelector("code");
+  code.textContent = script;
+  pre.removeAttribute("data-line");
+  if (window.Prism) window.Prism.highlightElement(code);
+}
+
+function parseTrainLines(text) {
+  const lines = [];
+  const re = /File "([^"]+)", line (\d+)/g;
+  let m;
+  while ((m = re.exec(text))) {
+    const base = m[1].replaceAll("\\", "/").split("/").pop();
+    if (base === "train.py") lines.push(m[2]);
+  }
+  return [...new Set(lines)];
+}
+
+function showTraceback(text) {
+  const box = document.getElementById("traceback");
+  const pre = document.getElementById("generated-code");
+  const code = pre.querySelector("code");
+  if (!text) {
+    box.hidden = true;
+    box.value = "";
+    pre.removeAttribute("data-line");
+  } else {
+    box.hidden = false;
+    box.value = text;
+    const lines = parseTrainLines(text);
+    if (lines.length) pre.setAttribute("data-line", lines.join(","));
+    else pre.removeAttribute("data-line");
+  }
+  if (window.Prism) window.Prism.highlightElement(code);
 }
 
 function initChart(epochs) {
@@ -151,6 +205,7 @@ function initChart(epochs) {
       plugins: {
         legend: { display: false },
         tooltip: {
+          displayColors: false,
           callbacks: {
             title: () => "",
             label: (ctx) => `(${ctx.label}, ${ctx.parsed.y})`,
@@ -196,6 +251,12 @@ function startPoll() {
           stopPoll();
           trainBusy = false;
           setTrainEnabled();
+          if (s.exit_code) {
+            showTraceback(s.traceback || "training failed");
+            setRightTab("code");
+          } else {
+            showTraceback("");
+          }
         }
       })
       .catch(() => {});

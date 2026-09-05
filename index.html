@@ -5,13 +5,17 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>netgui</title>
   <link rel="stylesheet" href="css/styles.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1/themes/prism.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1/plugins/line-numbers/prism-line-numbers.min.css">
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/prismjs@1/plugins/line-highlight/prism-line-highlight.min.css">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/prism.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/components/prism-python.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/plugins/line-numbers/prism-line-numbers.min.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/prismjs@1/plugins/line-highlight/prism-line-highlight.min.js"></script>
 </head>
 <body data-mode="move" data-panel-mode="data">
   <div id="toolbar">
-    <button type="button" id="btn-data" class="mode-btn active">Data</button>
-    <button type="button" id="btn-training" class="mode-btn">Training</button>
-    <div class="toolbar-sep"></div>
     <button type="button" id="btn-move" class="mode-btn active">Move</button>
     <button type="button" id="btn-connect" class="mode-btn">Connect</button>
     <div class="toolbar-sep"></div>
@@ -21,6 +25,10 @@
   </div>
   <div id="stage">
     <aside id="settings-panel">
+      <div class="panel-tabs">
+        <button type="button" id="tab-data" class="tab-btn active">Data</button>
+        <button type="button" id="tab-training" class="tab-btn">Training</button>
+      </div>
       <div class="panel-body" id="data-panel">
         <h2>Dataset</h2>
         <select id="dataset-type"></select>
@@ -75,15 +83,23 @@
     <aside id="generate-panel" hidden>
       <div class="resize-handle resize-handle-left" id="generate-resize"></div>
       <div class="panel-header">
-        <span>Generated code</span>
+        <div class="panel-tabs">
+          <button type="button" id="tab-code" class="tab-btn active">Code</button>
+          <button type="button" id="tab-train" class="tab-btn">Train</button>
+        </div>
         <button type="button" id="panel-close">Close</button>
       </div>
-      <textarea id="generated-code" readonly></textarea>
-      <button type="button" id="btn-train" disabled>Train</button>
-      <div id="loss-chart-wrap" hidden>
-        <canvas id="loss-chart"></canvas>
+      <div id="code-tab" class="tab-page">
+        <pre id="generated-code" class="line-numbers"><code class="language-python"></code></pre>
+        <button type="button" id="btn-copy">Copy</button>
+        <textarea id="traceback" readonly hidden></textarea>
       </div>
-      <button type="button" id="btn-copy">Copy</button>
+      <div id="train-tab" class="tab-page" hidden>
+        <button type="button" id="btn-train" disabled>Train</button>
+        <div id="loss-chart-wrap" hidden>
+          <canvas id="loss-chart"></canvas>
+        </div>
+      </div>
     </aside>
   </div>
   <script type="module" src="js/main.js"></script>

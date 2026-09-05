@@ -18,6 +18,7 @@ _epochs = None
 _done = False
 _exit_code = None
 _params_printed = False
+_traceback = None
 
 
 def remember(script, epochs):
@@ -39,7 +40,7 @@ def stored_epochs():
 
 
 def start():
-    global _proc, _workdir, _reader, _done, _exit_code, _params_printed
+    global _proc, _workdir, _reader, _done, _exit_code, _params_printed, _traceback
     with _lock:
         if _script is None:
             return "no_script"
@@ -57,6 +58,7 @@ def start():
         cmd = [
             "nsjail",
             "-Mo",
+            "-Q",
             "--chroot",
             "/",
             "--disable_rlimits",
@@ -85,6 +87,7 @@ def start():
         _done = False
         _exit_code = None
         _params_printed = False
+        _traceback = None
         try:
             _proc = subprocess.Popen(
                 cmd,
@@ -101,6 +104,7 @@ def start():
             _reader = None
             _done = True
             _exit_code = -1
+            _traceback = f"failed to start nsjail: {e}"
             return "failed"
         _workdir = workdir
         _reader = threading.Thread(target=_pump, args=(_proc,), daemon=True)
@@ -118,6 +122,7 @@ def status():
             "done": _done and not running,
             "exit_code": _exit_code,
             "epochs": _epochs,
+            "traceback": _traceback if _done and _exit_code not in (None, 0) else None,
         }
 
 
@@ -155,14 +160,28 @@ def _print_params():
     _params_printed = True
 
 
+def _extract_traceback(text):
+    marker = "Traceback (most recent call last):"
+    idx = text.find(marker)
+    if idx >= 0:
+        return text[idx:]
+    return text
+
+
 def _pump(proc):
-    global _done, _exit_code
+    global _done, _exit_code, _traceback
+    chunks = []
     if proc.stdout is not None:
         for line in proc.stdout:
             print(line, end="", flush=True)
+            chunks.append(line)
     code = proc.wait()
     _print_params()
     _exit_code = code
+    if code != 0:
+        _traceback = _extract_traceback("".join(chunks))
+    else:
+        _traceback = None
     _done = True
     print(f"nsjail exited {code}", flush=True)
 
