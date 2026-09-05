@@ -1,4 +1,4 @@
-from dataset_store import dataloader_snippet
+from dataset_store import dataloader_snippet, test_dataloader_snippet
 
 MODULES = {
     "Linear": [
@@ -98,6 +98,8 @@ OPTIMIZERS = {
     },
 }
 
+CLASSIFICATION_LOSSES = frozenset({"CrossEntropy", "BCE", "BCEWithLogits"})
+
 LOSSES = {
     "MSE": {
         "className": "MSELoss",
@@ -188,7 +190,7 @@ def linear_path(nodes, edges):
     return path
 
 
-def to_python(payload):
+def _parts(payload):
     nodes = payload.get("nodes") or {}
     edges = payload.get("edges") or {}
     training = payload.get("training") or {}
@@ -200,7 +202,8 @@ def to_python(payload):
         return None
 
     opt = OPTIMIZERS.get(training.get("optimizer"))
-    loss = LOSSES.get(training.get("loss"))
+    loss_name = training.get("loss")
+    loss = LOSSES.get(loss_name)
     if opt is None or loss is None:
         return None
     opt_args_vals = training.get("optimizerArgs") or {}
@@ -232,25 +235,41 @@ def to_python(payload):
         f"{field['name']}={python_value(field, loss_args_vals.get(field['name']))}"
         for field in loss["args"]
     )
-    layer_block = ",\n".join(layers)
+    return {
+        "snippet": snippet,
+        "opt": opt,
+        "loss": loss,
+        "loss_name": loss_name,
+        "epochs": epochs,
+        "opt_args": opt_args,
+        "loss_args": loss_args,
+        "layer_block": ",\n".join(layers),
+        "dataset": payload.get("dataset"),
+    }
+
+
+def to_python(payload):
+    parts = _parts(payload)
+    if parts is None:
+        return None
 
     return f"""import json
 import torch
 import torch.nn as nn
 
-{snippet}
+{parts["snippet"]}
 
 model = nn.Sequential(
-{layer_block},
+{parts["layer_block"]},
 )
 
-criterion = nn.{loss['className']}({loss_args})
-optimizer = torch.optim.{opt['className']}(
+criterion = nn.{parts["loss"]["className"]}({parts["loss_args"]})
+optimizer = torch.optim.{parts["opt"]["className"]}(
     model.parameters(),
-{opt_args},
+{parts["opt_args"]},
 )
 
-epochs = {epochs}
+epochs = {parts["epochs"]}
 model.train()
 for epoch in range(epochs):
     running = 0.0
@@ -270,8 +289,116 @@ for epoch in range(epochs):
             _f.write(json.dumps({{"epoch": epoch + 1, "loss": _loss}}) + "\\n")
             _f.flush()
 
+torch.save(model.state_dict(), "model.pt")
 torch.set_printoptions(threshold=float("inf"), linewidth=120)
 with open("params.txt", "w", encoding="utf-8") as _f:
     for _name, _param in model.named_parameters():
         _f.write(f"{{_name}} {{tuple(_param.shape)}}\\n{{_param.detach().cpu()}}\\n\\n")
+"""
+
+
+def to_test_python(payload):
+    parts = _parts(payload)
+    if parts is None:
+        return None
+    test_snippet = test_dataloader_snippet(parts["dataset"])
+    if test_snippet is None:
+        return None
+    classify = parts["loss_name"] in CLASSIFICATION_LOSSES
+    if parts["loss_name"] == "CrossEntropy":
+        pred_lines = "        preds = outputs.argmax(dim=1)\n        gold = targets"
+    elif parts["loss_name"] == "BCEWithLogits":
+        pred_lines = "        preds = outputs >= 0\n        gold = targets >= 0.5"
+    else:
+        pred_lines = "        preds = outputs >= 0.5\n        gold = targets >= 0.5"
+    if classify:
+        eval_block = f"""    failures = []
+    idx = 0
+    for inputs, targets in test_dataloader:
+        outputs = model(inputs)
+        loss = criterion(outputs, targets)
+        bs = inputs.size(0)
+        if criterion.reduction == "mean":
+            running += loss.item() * bs
+        elif criterion.reduction == "sum":
+            running += loss.item()
+        else:
+            running += loss.sum().item()
+        n += bs
+{pred_lines}
+        mismatch = preds != gold
+        if mismatch.ndim > 1:
+            bad = mismatch.reshape(mismatch.size(0), -1).any(dim=1)
+        else:
+            bad = mismatch
+        for i in range(bs):
+            if bool(bad[i]):
+                failures.append({{
+                    "index": idx + i,
+                    "label": _fmt(gold[i]),
+                    "pred": _fmt(preds[i]),
+                }})
+        idx += bs
+    _loss = running / n if n else 0.0
+    n_failures = len(failures)
+    accuracy = (n - n_failures) / n if n else 0.0
+    result = {{
+        "loss": _loss,
+        "n": n,
+        "accuracy": accuracy,
+        "n_failures": n_failures,
+        "failures": failures,
+    }}"""
+    else:
+        eval_block = """    for inputs, targets in test_dataloader:
+        outputs = model(inputs)
+        loss = criterion(outputs, targets)
+        bs = inputs.size(0)
+        if criterion.reduction == "mean":
+            running += loss.item() * bs
+        elif criterion.reduction == "sum":
+            running += loss.item()
+        else:
+            running += loss.sum().item()
+        n += bs
+    _loss = running / n if n else 0.0
+    result = {
+        "loss": _loss,
+        "n": n,
+        "accuracy": None,
+        "n_failures": None,
+        "failures": [],
+    }"""
+
+    return f"""import json
+import torch
+import torch.nn as nn
+
+{test_snippet}
+
+def _fmt(t):
+    t = t.detach().cpu()
+    if t.ndim == 0:
+        v = t.item()
+        if isinstance(v, float) and v == int(v):
+            return str(int(v))
+        return str(v)
+    return str(t.tolist())
+
+model = nn.Sequential(
+{parts["layer_block"]},
+)
+model.load_state_dict(torch.load("model.pt", map_location="cpu"))
+model.eval()
+criterion = nn.{parts["loss"]["className"]}({parts["loss_args"]})
+
+running = 0.0
+n = 0
+with torch.no_grad():
+{eval_block}
+
+print(f"test loss {{result['loss']}} accuracy {{result['accuracy']}} failures {{result['n_failures']}}", flush=True)
+with open("test_results.json", "w", encoding="utf-8") as _f:
+    json.dump(result, _f)
+    _f.flush()
 """

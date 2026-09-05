@@ -99,6 +99,30 @@
         <div id="loss-chart-wrap" hidden>
           <canvas id="loss-chart"></canvas>
         </div>
+        <button type="button" id="btn-test" hidden disabled>Test</button>
+        <div id="test-error" hidden></div>
+        <div id="test-stats" hidden>
+          <div id="test-loss"></div>
+          <div id="test-accuracy" hidden></div>
+          <div id="test-failures" hidden></div>
+        </div>
+        <div id="fail-sample" hidden>
+          <div id="fail-media"></div>
+          <div id="fail-label"></div>
+          <div id="fail-pred"></div>
+          <div id="fail-test-index"></div>
+          <div id="fail-nav">
+            <button type="button" id="fail-prev">Prev</button>
+            <button type="button" id="fail-next">Next</button>
+          </div>
+          <div class="setting-arg">
+            <span class="arg-name">index</span> =
+            <input id="fail-index" type="text" value="0">
+          </div>
+          <div id="fail-size"></div>
+          <div id="fail-input-shape"></div>
+          <div id="fail-label-shape"></div>
+        </div>
       </div>
     </aside>
   </div>

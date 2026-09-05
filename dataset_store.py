@@ -38,6 +38,16 @@ def dataloader_snippet(dataset_id):
     return file.read_text(encoding="utf-8").strip("\n")
 
 
+def test_dataloader_snippet(dataset_id):
+    folder = _dataset_dir(dataset_id)
+    if folder is None:
+        return None
+    file = folder / "test_dataloader.py"
+    if not file.is_file():
+        return None
+    return file.read_text(encoding="utf-8").strip("\n")
+
+
 def _preview_mod(dataset_id):
     if dataset_id in _preview_modules:
         return _preview_modules[dataset_id]
@@ -56,14 +66,14 @@ def _preview_mod(dataset_id):
     return mod
 
 
-def preview_payload(dataset_id, index=0):
+def preview_payload(dataset_id, index=0, split="train"):
     mod = _preview_mod(dataset_id)
     if mod is None:
         return None
     fn = getattr(mod, "preview", None)
     if not callable(fn):
         return None
-    result = fn(index)
+    result = fn(index, split=split)
     if not isinstance(result, dict):
         return None
     return result

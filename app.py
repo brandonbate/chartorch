@@ -2,9 +2,20 @@ from pathlib import Path
 
 from flask import Flask, abort, request, send_from_directory
 
-from codegen import to_python
+from codegen import to_python, to_test_python
 from dataset_store import list_datasets, preview_payload
-from jail import has_script, is_running, remember, start, status, stored_epochs
+from jail import (
+    has_model,
+    has_script,
+    is_running,
+    remember,
+    start,
+    start_test,
+    status,
+    stored_epochs,
+    stored_payload,
+    test_status,
+)
 
 ROOT = Path(__file__).resolve().parent
 app = Flask(__name__)
@@ -37,7 +48,10 @@ def preview(dataset_id):
         index = int(raw)
     except (TypeError, ValueError):
         index = 0
-    payload = preview_payload(dataset_id, index)
+    split = request.args.get("split", "train")
+    if split not in ("train", "test"):
+        split = "train"
+    payload = preview_payload(dataset_id, index, split=split)
     if payload is None:
         abort(404)
     return payload
@@ -52,7 +66,7 @@ def generate():
     if script is None:
         abort(400)
     epochs = (payload.get("training") or {}).get("epochs")
-    remember(script, epochs)
+    remember(script, epochs, payload)
     print(script, flush=True)
     return {"code": script}
 
@@ -74,6 +88,29 @@ def train():
 @app.get("/api/train/status")
 def train_status():
     return status()
+
+
+@app.post("/api/test")
+def test():
+    if is_running():
+        abort(409)
+    if not has_model():
+        abort(400)
+    payload = stored_payload()
+    script = to_test_python(payload) if payload is not None else None
+    if script is None:
+        abort(400)
+    result = start_test(script)
+    if result == "running":
+        abort(409)
+    if result != "ok":
+        abort(500)
+    return {"ok": True}
+
+
+@app.get("/api/test/status")
+def test_status_route():
+    return test_status()
 
 
 if __name__ == "__main__":

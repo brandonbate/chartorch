@@ -4,19 +4,25 @@ import io
 from torchvision import datasets, transforms
 from torchvision.transforms.functional import to_pil_image
 
-_dataset = None
+_datasets = {}
 
 
-def _load():
-    global _dataset
-    if _dataset is None:
+def _load(split="train"):
+    if split not in _datasets:
         transform = transforms.ToTensor()
-        _dataset = datasets.MNIST(root="./data", train=True, download=True, transform=transform)
-    return _dataset
+        _datasets[split] = datasets.MNIST(
+            root="./data",
+            train=split != "test",
+            download=True,
+            transform=transform,
+        )
+    return _datasets[split]
 
 
-def preview(index=0):
-    dataset = _load()
+def preview(index=0, split="train"):
+    if split not in ("train", "test"):
+        split = "train"
+    dataset = _load(split)
     size = len(dataset)
     index = 0 if size == 0 else max(0, min(int(index), size - 1))
     image, label = dataset[index]

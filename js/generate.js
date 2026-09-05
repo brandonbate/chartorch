@@ -1,16 +1,24 @@
 import { incoming, outgoing, state } from "./model.js";
 import { closeEditor } from "./render.js";
 import { training } from "./training.js";
-import { dataState } from "./data.js";
+import { dataState, displayInputShape, formatShape, renderMedia } from "./data.js";
 
 const INVALID_MSG = "the network architecture is invalid";
 const GENERATE_FAIL_MSG = "failed to generate code";
 const TRAIN_FAIL_MSG = "failed to start training";
+const TEST_FAIL_MSG = "failed to start testing";
 
 let generatedCode = "";
+let generatedDataset = "";
 let trainBusy = false;
+let testReady = false;
+let testBusy = false;
 let pollTimer = null;
 let lossChart = null;
+let failures = [];
+let failIndex = 0;
+let failLoading = false;
+let failSeq = 0;
 
 export function linearPath() {
   const nodes = Object.values(state.nodes);
@@ -71,11 +79,17 @@ export function initGenerate() {
         const payload = await r.json();
         if (!payload || typeof payload.code !== "string") throw new Error();
         generatedCode = payload.code;
+        generatedDataset = dataState.dataset;
         setCode(generatedCode);
         showTraceback("");
         setRightTab("code");
         panel.hidden = false;
-        setTrainEnabled();
+        stopPoll();
+        trainBusy = false;
+        testBusy = false;
+        testReady = false;
+        resetTestUi();
+        setButtons();
       })
       .catch(() => {
         window.alert(GENERATE_FAIL_MSG);
@@ -86,9 +100,11 @@ export function initGenerate() {
   document.getElementById("tab-train").addEventListener("click", () => setRightTab("train"));
 
   btnTrain.addEventListener("click", () => {
-    if (trainBusy || !generatedCode) return;
+    if (trainBusy || testBusy || !generatedCode) return;
     trainBusy = true;
-    setTrainEnabled();
+    testReady = false;
+    resetTestUi();
+    setButtons();
     showTraceback("");
     fetch("/api/train", { method: "POST" })
       .then(async (r) => {
@@ -101,9 +117,61 @@ export function initGenerate() {
       })
       .catch(() => {
         trainBusy = false;
-        setTrainEnabled();
+        setButtons();
         window.alert(TRAIN_FAIL_MSG);
       });
+  });
+
+  document.getElementById("btn-test").addEventListener("click", () => {
+    if (trainBusy || testBusy || !testReady) return;
+    testBusy = true;
+    setButtons();
+    showTestError("");
+    document.getElementById("test-stats").hidden = true;
+    document.getElementById("fail-sample").hidden = true;
+    fetch("/api/test", { method: "POST" })
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        startTestPoll();
+      })
+      .catch(() => {
+        testBusy = false;
+        setButtons();
+        window.alert(TEST_FAIL_MSG);
+      });
+  });
+
+  const failPrev = document.getElementById("fail-prev");
+  const failNext = document.getElementById("fail-next");
+  const failIndexInput = document.getElementById("fail-index");
+  failPrev.addEventListener("click", () => {
+    if (failLoading || failIndex <= 0) return;
+    failIndex -= 1;
+    loadFailPreview();
+  });
+  failNext.addEventListener("click", () => {
+    if (failLoading || failIndex >= failures.length - 1) return;
+    failIndex += 1;
+    loadFailPreview();
+  });
+  const commitFailIndex = () => {
+    const parsed = Number.parseInt(failIndexInput.value, 10);
+    if (Number.isInteger(parsed) && failures.length) {
+      const next = Math.min(failures.length - 1, Math.max(0, parsed));
+      if (next !== failIndex) {
+        failIndex = next;
+        loadFailPreview();
+      }
+    }
+    failIndexInput.value = String(failIndex);
+  };
+  failIndexInput.addEventListener("change", commitFailIndex);
+  failIndexInput.addEventListener("blur", commitFailIndex);
+  failIndexInput.addEventListener("keydown", (e) => {
+    if (e.key === "Enter") {
+      e.preventDefault();
+      failIndexInput.blur();
+    }
   });
 
   document.getElementById("panel-close").addEventListener("click", () => {
@@ -133,8 +201,31 @@ function setRightTab(name) {
   if (name === "train" && lossChart) lossChart.resize();
 }
 
-function setTrainEnabled() {
-  document.getElementById("btn-train").disabled = trainBusy || !generatedCode;
+function setButtons() {
+  document.getElementById("btn-train").disabled = trainBusy || testBusy || !generatedCode;
+  const btnTest = document.getElementById("btn-test");
+  btnTest.hidden = !testReady;
+  btnTest.disabled = trainBusy || testBusy || !testReady;
+}
+
+function resetTestUi() {
+  failures = [];
+  failIndex = 0;
+  document.getElementById("btn-test").hidden = true;
+  document.getElementById("test-stats").hidden = true;
+  document.getElementById("fail-sample").hidden = true;
+  showTestError("");
+}
+
+function showTestError(text) {
+  const el = document.getElementById("test-error");
+  if (!text) {
+    el.hidden = true;
+    el.textContent = "";
+    return;
+  }
+  el.hidden = false;
+  el.textContent = text;
 }
 
 function setCode(script) {
@@ -250,11 +341,14 @@ function startPoll() {
         if (s.done) {
           stopPoll();
           trainBusy = false;
-          setTrainEnabled();
           if (s.exit_code) {
+            testReady = false;
+            setButtons();
             showTraceback(s.traceback || "training failed");
             setRightTab("code");
           } else {
+            testReady = true;
+            setButtons();
             showTraceback("");
           }
         }
@@ -270,4 +364,119 @@ function stopPoll() {
     clearInterval(pollTimer);
     pollTimer = null;
   }
+}
+
+function startTestPoll() {
+  stopPoll();
+  const tick = () => {
+    fetch("/api/test/status")
+      .then((r) => {
+        if (!r.ok) throw new Error();
+        return r.json();
+      })
+      .then((s) => {
+        if (!s.done) return;
+        stopPoll();
+        testBusy = false;
+        setButtons();
+        if (s.exit_code) {
+          showTestError(s.traceback || "testing failed");
+          return;
+        }
+        if (!s.result) {
+          showTestError("testing failed");
+          return;
+        }
+        applyTestResult(s.result);
+      })
+      .catch(() => {});
+  };
+  tick();
+  pollTimer = setInterval(tick, 400);
+}
+
+function applyTestResult(result) {
+  showTestError("");
+  const stats = document.getElementById("test-stats");
+  stats.hidden = false;
+  document.getElementById("test-loss").textContent = `test loss = ${result.loss}`;
+  const accEl = document.getElementById("test-accuracy");
+  const failEl = document.getElementById("test-failures");
+  if (result.accuracy == null || result.n_failures == null) {
+    accEl.hidden = true;
+    failEl.hidden = true;
+    document.getElementById("fail-sample").hidden = true;
+    failures = [];
+    return;
+  }
+  accEl.hidden = false;
+  failEl.hidden = false;
+  accEl.textContent = `test accuracy = ${result.accuracy}`;
+  failEl.textContent = `test failures = ${result.n_failures}`;
+  failures = Array.isArray(result.failures) ? result.failures : [];
+  failIndex = 0;
+  if (!failures.length) {
+    document.getElementById("fail-sample").hidden = true;
+    return;
+  }
+  document.getElementById("fail-sample").hidden = false;
+  loadFailPreview();
+}
+
+function setFailNav() {
+  const prev = document.getElementById("fail-prev");
+  const next = document.getElementById("fail-next");
+  const indexInput = document.getElementById("fail-index");
+  const n = failures.length;
+  const busy = failLoading || n <= 0;
+  prev.disabled = busy || failIndex <= 0;
+  next.disabled = busy || failIndex >= n - 1;
+  indexInput.disabled = busy;
+}
+
+function loadFailPreview() {
+  const item = failures[failIndex];
+  const sample = document.getElementById("fail-sample");
+  if (!item) {
+    sample.hidden = true;
+    return;
+  }
+  const seq = ++failSeq;
+  failLoading = true;
+  setFailNav();
+  const testIndex = item.index;
+  fetch(
+    `/api/preview/${encodeURIComponent(generatedDataset)}?index=${encodeURIComponent(testIndex)}&split=test`,
+  )
+    .then((r) => {
+      if (!r.ok) throw new Error();
+      return r.json();
+    })
+    .then((payload) => {
+      if (seq !== failSeq) return;
+      failLoading = false;
+      renderMedia(payload, document.getElementById("fail-media"));
+      document.getElementById("fail-label").textContent = `label = ${item.label}`;
+      document.getElementById("fail-pred").textContent = `pred = ${item.pred}`;
+      document.getElementById("fail-test-index").textContent = `test_index = ${testIndex}`;
+      document.getElementById("fail-index").value = String(failIndex);
+      document.getElementById("fail-size").textContent = `size = ${failures.length}`;
+      document.getElementById("fail-input-shape").textContent =
+        `input_shape = ${formatShape(displayInputShape(payload.input_shape))}`;
+      document.getElementById("fail-label-shape").textContent =
+        `label_shape = ${formatShape(payload.label_shape)}`;
+      setFailNav();
+    })
+    .catch(() => {
+      if (seq !== failSeq) return;
+      failLoading = false;
+      document.getElementById("fail-media").replaceChildren();
+      document.getElementById("fail-label").textContent = "Failed to load sample.";
+      document.getElementById("fail-pred").textContent = "";
+      document.getElementById("fail-test-index").textContent = "";
+      document.getElementById("fail-size").textContent = "";
+      document.getElementById("fail-input-shape").textContent = "";
+      document.getElementById("fail-label-shape").textContent = "";
+      setFailNav();
+    });
 }

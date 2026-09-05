@@ -115,7 +115,8 @@ body {
   margin-top: 12px;
 }
 
-#dataset-media img {
+#dataset-media img,
+#fail-media img {
   display: block;
   width: 100%;
   max-width: 220px;
@@ -124,18 +125,21 @@ body {
   image-rendering: crisp-edges;
 }
 
-#dataset-media audio {
+#dataset-media audio,
+#fail-media audio {
   display: block;
   width: 100%;
 }
 
-#dataset-nav {
+#dataset-nav,
+#fail-nav {
   display: flex;
   gap: 6px;
   margin-top: 8px;
 }
 
-#dataset-nav button {
+#dataset-nav button,
+#fail-nav button {
   appearance: none;
   border: 1px solid #555;
   background: #3a3a3a;
@@ -147,11 +151,13 @@ body {
   cursor: pointer;
 }
 
-#dataset-nav button:hover:not(:disabled) {
+#dataset-nav button:hover:not(:disabled),
+#fail-nav button:hover:not(:disabled) {
   background: #4a4a4a;
 }
 
-#dataset-nav button:disabled {
+#dataset-nav button:disabled,
+#fail-nav button:disabled {
   opacity: 0.45;
   cursor: default;
 }
@@ -159,7 +165,16 @@ body {
 #dataset-label,
 #dataset-size,
 #dataset-input-shape,
-#dataset-label-shape {
+#dataset-label-shape,
+#test-loss,
+#test-accuracy,
+#test-failures,
+#fail-label,
+#fail-pred,
+#fail-test-index,
+#fail-size,
+#fail-input-shape,
+#fail-label-shape {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
   margin-top: 8px;
@@ -437,6 +452,7 @@ body[data-mode="connect"] .node {
   display: flex;
   flex-direction: column;
   gap: 10px;
+  overflow-y: auto;
 }
 
 .tab-page[hidden] {
@@ -445,7 +461,8 @@ body[data-mode="connect"] .node {
 
 #generate-panel #panel-close,
 #generate-panel #btn-copy,
-#generate-panel #btn-train {
+#generate-panel #btn-train,
+#generate-panel #btn-test {
   appearance: none;
   border: 1px solid #555;
   background: #3a3a3a;
@@ -459,18 +476,20 @@ body[data-mode="connect"] .node {
 
 #generate-panel #panel-close:hover,
 #generate-panel #btn-copy:hover,
-#generate-panel #btn-train:hover:not(:disabled) {
+#generate-panel #btn-train:hover:not(:disabled),
+#generate-panel #btn-test:hover:not(:disabled) {
   background: #4a4a4a;
 }
 
-#generate-panel #btn-train:disabled {
+#generate-panel #btn-train:disabled,
+#generate-panel #btn-test:disabled {
   opacity: 0.45;
   cursor: default;
 }
 
 #loss-chart-wrap {
-  flex: 1;
-  min-height: 180px;
+  flex: 0 0 180px;
+  height: 180px;
 }
 
 #loss-chart-wrap[hidden] {
@@ -509,5 +528,18 @@ body[data-mode="connect"] .node {
 }
 
 #traceback[hidden] {
+  display: none;
+}
+
+#test-error {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  color: #a11;
+  white-space: pre-wrap;
+}
+
+#test-error[hidden],
+#test-stats[hidden],
+#fail-sample[hidden] {
   display: none;
 }

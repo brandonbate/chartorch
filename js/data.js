@@ -156,7 +156,7 @@ function renderPreview(payload) {
     `label_shape = ${formatShape(payload.label_shape)}`;
 }
 
-function renderMedia(payload, el) {
+export function renderMedia(payload, el) {
   el.replaceChildren();
   if (payload.kind === "image") {
     const img = document.createElement("img");
@@ -173,13 +173,13 @@ function renderMedia(payload, el) {
   }
 }
 
-function displayInputShape(shape) {
+export function displayInputShape(shape) {
   if (!Array.isArray(shape)) return [];
   if (shape.length && shape[0] === 1) return shape.slice(1);
   return shape;
 }
 
-function formatShape(shape) {
+export function formatShape(shape) {
   if (!Array.isArray(shape)) return "[]";
   return `[${shape.join(", ")}]`;
 }
