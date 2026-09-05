@@ -252,10 +252,16 @@ optimizer = torch.optim.{opt['className']}(
 epochs = {epochs}
 model.train()
 for epoch in range(epochs):
+    running = 0.0
+    n = 0
     for inputs, targets in dataloader:
         optimizer.zero_grad()
         outputs = model(inputs)
         loss = criterion(outputs, targets)
         loss.backward()
         optimizer.step()
+        running += loss.item()
+        n += 1
+    if n:
+        print(f"epoch {{epoch + 1}}/{{epochs}} loss {{running / n}}", flush=True)
 """

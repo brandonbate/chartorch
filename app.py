@@ -4,6 +4,7 @@ from flask import Flask, abort, request, send_from_directory
 
 from codegen import to_python
 from dataset_store import list_datasets, preview_payload
+from jail import start as start_jail
 
 ROOT = Path(__file__).resolve().parent
 app = Flask(__name__)
@@ -51,6 +52,7 @@ def generate():
     if script is None:
         abort(400)
     print(script, flush=True)
+    start_jail(script)
     return {"code": script}
 
 
