@@ -220,13 +220,39 @@ def _read_test_results():
                 "label": str(item.get("label", "")),
                 "pred": str(item.get("pred", "")),
             })
+    plot = _parse_plot(obj.get("plot"))
     return {
         "loss": loss,
         "n": n,
         "accuracy": acc,
         "n_failures": n_fail,
         "failures": failures,
+        "plot": plot,
     }
+
+
+def _parse_xy_list(raw):
+    points = []
+    if not isinstance(raw, list):
+        return points
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        x = item.get("x")
+        y = item.get("y")
+        if isinstance(x, (int, float)) and isinstance(y, (int, float)):
+            points.append({"x": x, "y": y})
+    return points
+
+
+def _parse_plot(raw):
+    if not isinstance(raw, dict):
+        return None
+    points = _parse_xy_list(raw.get("points"))
+    curve = _parse_xy_list(raw.get("curve"))
+    if not points and not curve:
+        return None
+    return {"points": points, "curve": curve}
 
 
 def _read_metrics():
