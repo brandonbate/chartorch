@@ -211,6 +211,12 @@ def _parts(payload):
     epochs = training.get("epochs")
     if not isinstance(epochs, int):
         return None
+    batch_size = training.get("batchSize")
+    if not isinstance(batch_size, int) or batch_size < 1:
+        return None
+    shuffle = training.get("shuffle")
+    if not isinstance(shuffle, bool):
+        return None
 
     layers = []
     for node in path:
@@ -241,6 +247,8 @@ def _parts(payload):
         "loss": loss,
         "loss_name": loss_name,
         "epochs": epochs,
+        "batch_size": batch_size,
+        "shuffle": shuffle,
         "opt_args": opt_args,
         "loss_args": loss_args,
         "layer_block": ",\n".join(layers),
@@ -256,6 +264,9 @@ def to_python(payload):
     return f"""import json
 import torch
 import torch.nn as nn
+
+batch_size = {parts["batch_size"]}
+shuffle = {python_value({"type": "bool"}, parts["shuffle"])}
 
 {parts["snippet"]}
 
@@ -373,6 +384,8 @@ def to_test_python(payload):
     return f"""import json
 import torch
 import torch.nn as nn
+
+batch_size = {parts["batch_size"]}
 
 {test_snippet}
 

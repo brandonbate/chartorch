@@ -64,6 +64,8 @@ export function initGenerate() {
           loss: training.loss,
           lossArgs: training.lossArgs,
           epochs: training.epochs,
+          batchSize: training.batchSize,
+          shuffle: training.shuffle,
         },
         dataset: dataState.dataset,
       }),

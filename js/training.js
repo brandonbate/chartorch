@@ -100,6 +100,8 @@ export const training = {
   loss: "MSE",
   lossArgs: defaultsFrom(LOSSES.MSE.args),
   epochs: 10,
+  batchSize: 1,
+  shuffle: true,
 };
 
 export function initSettings() {
@@ -108,10 +110,14 @@ export function initSettings() {
   const optArgs = document.getElementById("optimizer-args");
   const lossArgs = document.getElementById("loss-args");
   const epochsInput = document.getElementById("epochs-input");
+  const batchSizeInput = document.getElementById("batch-size-input");
+  const shuffleInput = document.getElementById("shuffle-input");
 
   fillSelect(optSel, OPTIMIZER_ORDER, training.optimizer);
   fillSelect(lossSel, LOSS_ORDER, training.loss);
   epochsInput.value = String(training.epochs);
+  batchSizeInput.value = String(training.batchSize);
+  shuffleInput.value = training.shuffle ? "True" : "False";
 
   renderArgFields(optArgs, OPTIMIZERS[training.optimizer].args, training.optimizerArgs);
   renderArgFields(lossArgs, LOSSES[training.loss].args, training.lossArgs);
@@ -137,6 +143,20 @@ export function initSettings() {
   };
   epochsInput.addEventListener("change", commitEpochs);
   epochsInput.addEventListener("blur", commitEpochs);
+
+  const commitBatchSize = () => {
+    const parsed = parseValue({ type: "int" }, batchSizeInput.value);
+    if (parsed !== undefined && parsed >= 1) {
+      training.batchSize = parsed;
+    }
+    batchSizeInput.value = String(training.batchSize);
+  };
+  batchSizeInput.addEventListener("change", commitBatchSize);
+  batchSizeInput.addEventListener("blur", commitBatchSize);
+
+  shuffleInput.addEventListener("change", () => {
+    training.shuffle = shuffleInput.value === "True";
+  });
 }
 
 function fillSelect(sel, names, current) {
