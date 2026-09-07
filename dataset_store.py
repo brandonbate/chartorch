@@ -77,3 +77,35 @@ def preview_payload(dataset_id, index=0, split="train"):
     if not isinstance(result, dict):
         return None
     return result
+
+
+def view_payload(dataset_id):
+    mod = _preview_mod(dataset_id)
+    if mod is None:
+        return None
+    view = getattr(mod, "VIEW", None)
+    if not isinstance(view, dict):
+        view = {}
+    sample = view.get("sample", "image")
+    if sample not in ("image", "text"):
+        sample = "image"
+    train_chart = bool(view.get("train_chart"))
+    test = view.get("test")
+    if test not in ("failures", "fit1d"):
+        test = None
+    points = None
+    if train_chart:
+        fn = getattr(mod, "chart", None)
+        if callable(fn):
+            try:
+                raw = fn("train")
+            except Exception:
+                raw = None
+            if isinstance(raw, list):
+                points = raw
+    return {
+        "sample": sample,
+        "train_chart": train_chart,
+        "test": test,
+        "points": points,
+    }

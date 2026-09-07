@@ -3,7 +3,7 @@ from pathlib import Path
 from flask import Flask, abort, request, send_from_directory
 
 from codegen import to_python, to_test_python
-from dataset_store import list_datasets, preview_payload
+from dataset_store import list_datasets, preview_payload, view_payload
 from jail import (
     has_model,
     has_script,
@@ -39,6 +39,14 @@ def js(filename):
 @app.get("/api/datasets")
 def datasets():
     return {"datasets": list_datasets()}
+
+
+@app.get("/api/dataset/<dataset_id>/view")
+def dataset_view(dataset_id):
+    payload = view_payload(dataset_id)
+    if payload is None:
+        abort(404)
+    return payload
 
 
 @app.get("/api/preview/<dataset_id>")

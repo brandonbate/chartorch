@@ -4,6 +4,12 @@ import io
 from torchvision import datasets, transforms
 from torchvision.transforms.functional import to_pil_image
 
+VIEW = {
+    "sample": "image",
+    "train_chart": False,
+    "test": "failures",
+}
+
 _datasets = {}
 
 

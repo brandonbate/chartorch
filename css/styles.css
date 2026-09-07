@@ -111,6 +111,18 @@ body {
   margin-bottom: 6px;
 }
 
+#dataset-chart-wrap,
+#test-plot-wrap {
+  flex: 0 0 180px;
+  height: 180px;
+  margin: 8px 0;
+}
+
+#dataset-chart-wrap[hidden],
+#test-plot-wrap[hidden] {
+  display: none;
+}
+
 #dataset-sample {
   margin-top: 12px;
 }
@@ -129,6 +141,13 @@ body {
 #fail-media audio {
   display: block;
   width: 100%;
+}
+
+#dataset-media .dataset-text,
+#fail-media .dataset-text {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  white-space: pre-wrap;
 }
 
 #dataset-nav,
@@ -172,9 +191,7 @@ body {
 #fail-label,
 #fail-pred,
 #fail-test-index,
-#fail-size,
-#fail-input-shape,
-#fail-label-shape {
+#fail-size {
   font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   font-size: 12px;
   margin-top: 8px;

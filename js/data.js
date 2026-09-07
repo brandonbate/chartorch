@@ -6,6 +6,7 @@ export const dataState = {
 
 let requestSeq = 0;
 let loading = false;
+let dataChart = null;
 
 export function initData() {
   const sel = document.getElementById("dataset-type");
@@ -33,6 +34,7 @@ export function initData() {
     dataState.index = 0;
     dataState.size = null;
     indexInput.value = "0";
+    loadView(dataState.dataset);
     loadPreview(dataState.dataset, 0, true);
   });
 
@@ -81,10 +83,12 @@ export function initData() {
         dataState.dataset = ids[0];
       }
       fillSelect(sel, ids.length ? ids : ["MNIST"], dataState.dataset);
+      loadView(dataState.dataset);
       loadPreview(dataState.dataset, dataState.index, true);
     })
     .catch(() => {
       fillSelect(sel, ["MNIST"], dataState.dataset);
+      loadView(dataState.dataset);
       loadPreview(dataState.dataset, dataState.index, true);
     });
 }
@@ -109,6 +113,90 @@ function setNavEnabled() {
   prev.disabled = busy || dataState.index <= 0;
   next.disabled = busy || dataState.index >= size - 1;
   indexInput.disabled = busy;
+}
+
+function loadView(id) {
+  fetch(`/api/dataset/${encodeURIComponent(id)}/view`)
+    .then((r) => {
+      if (!r.ok) throw new Error();
+      return r.json();
+    })
+    .then((view) => {
+      renderTrainChart(view);
+    })
+    .catch(() => {
+      renderTrainChart(null);
+    });
+}
+
+export function chartRange(vals) {
+  let min = Infinity;
+  let max = -Infinity;
+  for (const v of vals) {
+    if (typeof v === "number") {
+      min = Math.min(min, v);
+      max = Math.max(max, v);
+    }
+  }
+  if (min === Infinity) return null;
+  const pad = min === max ? Math.abs(min) * 0.1 || 0.1 : (max - min) * 0.1;
+  return [min - pad, max + pad];
+}
+
+export function scatterOptions() {
+  return {
+    animation: false,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: { display: false },
+      tooltip: {
+        displayColors: false,
+        callbacks: {
+          title: () => "",
+          label: (ctx) => `(${ctx.parsed.x}, ${ctx.parsed.y})`,
+        },
+      },
+    },
+  };
+}
+
+function renderTrainChart(view) {
+  const wrap = document.getElementById("dataset-chart-wrap");
+  const canvas = document.getElementById("dataset-chart");
+  const points = view && view.train_chart && Array.isArray(view.points) ? view.points : null;
+  if (!points || !points.length) {
+    wrap.hidden = true;
+    if (dataChart) {
+      dataChart.destroy();
+      dataChart = null;
+    }
+    return;
+  }
+  wrap.hidden = false;
+  if (dataChart) dataChart.destroy();
+  const xr = chartRange(points.map((p) => p.x));
+  const yr = chartRange(points.map((p) => p.y));
+  dataChart = new window.Chart(canvas, {
+    type: "scatter",
+    data: {
+      datasets: [
+        {
+          data: points,
+          showLine: false,
+          pointRadius: 3,
+          borderColor: "#333",
+          backgroundColor: "#333",
+        },
+      ],
+    },
+    options: {
+      ...scatterOptions(),
+      scales: {
+        x: xr ? { min: xr[0], max: xr[1] } : {},
+        y: yr ? { min: yr[0], max: yr[1] } : {},
+      },
+    },
+  });
 }
 
 function loadPreview(id, index, clear) {
@@ -163,6 +251,13 @@ export function renderMedia(payload, el) {
     img.alt = String(payload.label ?? "");
     img.src = `data:${payload.mime};base64,${payload.data}`;
     el.appendChild(img);
+    return;
+  }
+  if (payload.kind === "text") {
+    const text = document.createElement("div");
+    text.className = "dataset-text";
+    text.textContent = payload.text ?? "";
+    el.appendChild(text);
     return;
   }
   if (payload.kind === "audio") {

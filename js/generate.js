@@ -1,7 +1,7 @@
 import { incoming, outgoing, state } from "./model.js";
 import { closeEditor } from "./render.js";
 import { training } from "./training.js";
-import { dataState, displayInputShape, formatShape, renderMedia } from "./data.js";
+import { chartRange, dataState, renderMedia, scatterOptions } from "./data.js";
 
 const INVALID_MSG = "the network architecture is invalid";
 const GENERATE_FAIL_MSG = "failed to generate code";
@@ -15,6 +15,7 @@ let testReady = false;
 let testBusy = false;
 let pollTimer = null;
 let lossChart = null;
+let testPlotChart = null;
 let failures = [];
 let failIndex = 0;
 let failLoading = false;
@@ -131,6 +132,7 @@ export function initGenerate() {
     showTestError("");
     document.getElementById("test-stats").hidden = true;
     document.getElementById("fail-sample").hidden = true;
+    hideTestPlot();
     fetch("/api/test", { method: "POST" })
       .then((r) => {
         if (!r.ok) throw new Error();
@@ -201,6 +203,7 @@ function setRightTab(name) {
   document.getElementById("code-tab").hidden = name !== "code";
   document.getElementById("train-tab").hidden = name !== "train";
   if (name === "train" && lossChart) lossChart.resize();
+  if (name === "train" && testPlotChart) testPlotChart.resize();
 }
 
 function setButtons() {
@@ -216,6 +219,7 @@ function resetTestUi() {
   document.getElementById("btn-test").hidden = true;
   document.getElementById("test-stats").hidden = true;
   document.getElementById("fail-sample").hidden = true;
+  hideTestPlot();
   showTestError("");
 }
 
@@ -397,6 +401,60 @@ function startTestPoll() {
   pollTimer = setInterval(tick, 400);
 }
 
+function hideTestPlot() {
+  const wrap = document.getElementById("test-plot-wrap");
+  wrap.hidden = true;
+  if (testPlotChart) {
+    testPlotChart.destroy();
+    testPlotChart = null;
+  }
+}
+
+function renderTestPlot(plot) {
+  const wrap = document.getElementById("test-plot-wrap");
+  const canvas = document.getElementById("test-plot");
+  const points = Array.isArray(plot.points) ? plot.points : [];
+  const curve = Array.isArray(plot.curve) ? plot.curve : [];
+  if (!points.length && !curve.length) {
+    hideTestPlot();
+    return;
+  }
+  wrap.hidden = false;
+  if (testPlotChart) testPlotChart.destroy();
+  const xs = points.map((p) => p.x).concat(curve.map((p) => p.x));
+  const ys = points.map((p) => p.y).concat(curve.map((p) => p.y));
+  const xr = chartRange(xs);
+  const yr = chartRange(ys);
+  testPlotChart = new window.Chart(canvas, {
+    type: "scatter",
+    data: {
+      datasets: [
+        {
+          data: points,
+          showLine: false,
+          pointRadius: 3,
+          borderColor: "#333",
+          backgroundColor: "#333",
+        },
+        {
+          data: curve,
+          showLine: true,
+          pointRadius: 0,
+          borderColor: "#1a73e8",
+          backgroundColor: "#1a73e8",
+        },
+      ],
+    },
+    options: {
+      ...scatterOptions(),
+      scales: {
+        x: xr ? { min: xr[0], max: xr[1] } : {},
+        y: yr ? { min: yr[0], max: yr[1] } : {},
+      },
+    },
+  });
+}
+
 function applyTestResult(result) {
   showTestError("");
   const stats = document.getElementById("test-stats");
@@ -404,6 +462,15 @@ function applyTestResult(result) {
   document.getElementById("test-loss").textContent = `test loss = ${result.loss}`;
   const accEl = document.getElementById("test-accuracy");
   const failEl = document.getElementById("test-failures");
+  if (result.plot) {
+    accEl.hidden = true;
+    failEl.hidden = true;
+    document.getElementById("fail-sample").hidden = true;
+    failures = [];
+    renderTestPlot(result.plot);
+    return;
+  }
+  hideTestPlot();
   if (result.accuracy == null || result.n_failures == null) {
     accEl.hidden = true;
     failEl.hidden = true;
@@ -463,10 +530,6 @@ function loadFailPreview() {
       document.getElementById("fail-test-index").textContent = `test_index = ${testIndex}`;
       document.getElementById("fail-index").value = String(failIndex);
       document.getElementById("fail-size").textContent = `size = ${failures.length}`;
-      document.getElementById("fail-input-shape").textContent =
-        `input_shape = ${formatShape(displayInputShape(payload.input_shape))}`;
-      document.getElementById("fail-label-shape").textContent =
-        `label_shape = ${formatShape(payload.label_shape)}`;
       setFailNav();
     })
     .catch(() => {
@@ -477,8 +540,6 @@ function loadFailPreview() {
       document.getElementById("fail-pred").textContent = "";
       document.getElementById("fail-test-index").textContent = "";
       document.getElementById("fail-size").textContent = "";
-      document.getElementById("fail-input-shape").textContent = "";
-      document.getElementById("fail-label-shape").textContent = "";
       setFailNav();
     });
 }

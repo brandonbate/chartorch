@@ -32,6 +32,9 @@
       <div class="panel-body" id="data-panel">
         <h2>Dataset</h2>
         <select id="dataset-type"></select>
+        <div id="dataset-chart-wrap" hidden>
+          <canvas id="dataset-chart"></canvas>
+        </div>
         <div id="dataset-sample">
           <div id="dataset-media"></div>
           <div id="dataset-label"></div>
@@ -117,6 +120,9 @@
           <div id="test-accuracy" hidden></div>
           <div id="test-failures" hidden></div>
         </div>
+        <div id="test-plot-wrap" hidden>
+          <canvas id="test-plot"></canvas>
+        </div>
         <div id="fail-sample" hidden>
           <div id="fail-media"></div>
           <div id="fail-label"></div>
@@ -131,8 +137,6 @@
             <input id="fail-index" type="text" value="0">
           </div>
           <div id="fail-size"></div>
-          <div id="fail-input-shape"></div>
-          <div id="fail-label-shape"></div>
         </div>
       </div>
     </aside>

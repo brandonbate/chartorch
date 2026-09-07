@@ -1,4 +1,4 @@
-from dataset_store import dataloader_snippet, test_dataloader_snippet
+from dataset_store import dataloader_snippet, test_dataloader_snippet, view_payload
 
 MODULES = {
     "Linear": [
@@ -316,13 +316,59 @@ def to_test_python(payload):
     if test_snippet is None:
         return None
     classify = parts["loss_name"] in CLASSIFICATION_LOSSES
+    view = view_payload(parts["dataset"]) or {}
+    test_mode = view.get("test")
+    if test_mode not in ("failures", "fit1d"):
+        test_mode = "failures" if classify else None
     if parts["loss_name"] == "CrossEntropy":
         pred_lines = "        preds = outputs.argmax(dim=1)\n        gold = targets"
     elif parts["loss_name"] == "BCEWithLogits":
         pred_lines = "        preds = outputs >= 0\n        gold = targets >= 0.5"
     else:
         pred_lines = "        preds = outputs >= 0.5\n        gold = targets >= 0.5"
-    if classify:
+    if test_mode == "fit1d":
+        eval_block = """    points = []
+    for inputs, targets in test_dataloader:
+        outputs = model(inputs)
+        loss = criterion(outputs, targets)
+        bs = inputs.size(0)
+        if criterion.reduction == "mean":
+            running += loss.item() * bs
+        elif criterion.reduction == "sum":
+            running += loss.item()
+        else:
+            running += loss.sum().item()
+        n += bs
+        for i in range(bs):
+            points.append({
+                "x": float(inputs[i].reshape(-1)[0].item()),
+                "y": float(targets[i].reshape(-1)[0].item()),
+            })
+    _loss = running / n if n else 0.0
+    curve = []
+    if points:
+        xs = [p["x"] for p in points]
+        x_min = min(xs)
+        x_max = max(xs)
+        if x_min == x_max:
+            x_min -= 0.5
+            x_max += 0.5
+        grid = torch.linspace(x_min, x_max, 100).view(-1, 1)
+        preds = model(grid)
+        for i in range(grid.size(0)):
+            curve.append({
+                "x": float(grid[i].item()),
+                "y": float(preds[i].reshape(-1)[0].item()),
+            })
+    result = {
+        "loss": _loss,
+        "n": n,
+        "accuracy": None,
+        "n_failures": None,
+        "failures": [],
+        "plot": {"points": points, "curve": curve},
+    }"""
+    elif test_mode == "failures" and classify:
         eval_block = f"""    failures = []
     idx = 0
     for inputs, targets in test_dataloader:
