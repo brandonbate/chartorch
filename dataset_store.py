@@ -5,6 +5,7 @@ from pathlib import Path
 ROOT = Path(__file__).resolve().parent
 DATASETS_DIR = ROOT / "datasets"
 SAFE_ID = re.compile(r"^[\w.-]+$")
+HEX_COLOR = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
 _preview_modules = {}
 
@@ -91,7 +92,7 @@ def view_payload(dataset_id):
         sample = "image"
     train_chart = bool(view.get("train_chart"))
     test = view.get("test")
-    if test not in ("failures", "fit1d"):
+    if test not in ("failures", "fit1d", "regions2d"):
         test = None
     points = None
     if train_chart:
@@ -108,4 +109,22 @@ def view_payload(dataset_id):
         "train_chart": train_chart,
         "test": test,
         "points": points,
+        "class_colors": _class_colors(mod, view),
     }
+
+
+def _class_colors(mod, view):
+    raw = getattr(mod, "CLASS_COLORS", None)
+    if raw is None and isinstance(view, dict):
+        raw = view.get("colors")
+    if not isinstance(raw, dict):
+        return None
+    out = {}
+    for key, val in raw.items():
+        try:
+            cls = int(key)
+        except (TypeError, ValueError):
+            continue
+        if isinstance(val, str) and HEX_COLOR.fullmatch(val):
+            out[str(cls)] = val
+    return out or None

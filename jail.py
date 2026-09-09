@@ -1,11 +1,14 @@
 import json
 import os
+import re
 import shutil
 import subprocess
 import sys
 import tempfile
 import threading
 from pathlib import Path
+
+HEX_COLOR = re.compile(r"^#(?:[0-9a-fA-F]{3}|[0-9a-fA-F]{6})$")
 
 ROOT = Path(__file__).resolve().parent
 
@@ -240,9 +243,21 @@ def _parse_xy_list(raw):
             continue
         x = item.get("x")
         y = item.get("y")
+        if isinstance(x, bool) or isinstance(y, bool):
+            continue
         if isinstance(x, (int, float)) and isinstance(y, (int, float)):
-            points.append({"x": x, "y": y})
+            pt = {"x": x, "y": y}
+            color = _parse_color(item.get("color"))
+            if color is not None:
+                pt["color"] = color
+            points.append(pt)
     return points
+
+
+def _parse_color(value):
+    if isinstance(value, str) and HEX_COLOR.fullmatch(value):
+        return value
+    return None
 
 
 def _parse_plot(raw):
@@ -250,9 +265,55 @@ def _parse_plot(raw):
         return None
     points = _parse_xy_list(raw.get("points"))
     curve = _parse_xy_list(raw.get("curve"))
+    if raw.get("kind") == "regions2d":
+        return _parse_regions2d(raw, points)
     if not points and not curve:
         return None
     return {"points": points, "curve": curve}
+
+
+def _parse_regions2d(raw, points):
+    nx = raw.get("nx")
+    ny = raw.get("ny")
+    bounds = {}
+    for key in ("x_min", "x_max", "y_min", "y_max"):
+        val = raw.get(key)
+        if isinstance(val, bool) or not isinstance(val, (int, float)):
+            if not points:
+                return None
+            return {"kind": "regions2d", "points": points, "curve": []}
+        bounds[key] = val
+    pred = []
+    raw_pred = raw.get("pred")
+    if isinstance(nx, int) and isinstance(ny, int) and nx >= 1 and ny >= 1 and isinstance(raw_pred, list):
+        for val in raw_pred[: nx * ny]:
+            if isinstance(val, bool) or not isinstance(val, int):
+                pred = []
+                break
+            pred.append(val)
+        if len(pred) != nx * ny:
+            pred = []
+    class_colors = {}
+    raw_cc = raw.get("class_colors")
+    if isinstance(raw_cc, dict):
+        for key, val in raw_cc.items():
+            color = _parse_color(val)
+            if color is not None:
+                class_colors[str(key)] = color
+    if not pred:
+        if not points:
+            return None
+        return {"kind": "regions2d", "points": points, "curve": [], **bounds}
+    return {
+        "kind": "regions2d",
+        **bounds,
+        "nx": nx,
+        "ny": ny,
+        "pred": pred,
+        "class_colors": class_colors,
+        "points": points,
+        "curve": [],
+    }
 
 
 def _read_metrics():

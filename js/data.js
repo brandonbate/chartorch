@@ -160,6 +160,22 @@ export function scatterOptions() {
   };
 }
 
+export function scatterDatasets(points) {
+  const groups = new Map();
+  for (const p of points) {
+    const color = typeof p.color === "string" && p.color ? p.color : "#333";
+    if (!groups.has(color)) groups.set(color, []);
+    groups.get(color).push(p);
+  }
+  return [...groups.entries()].map(([color, data]) => ({
+    data,
+    showLine: false,
+    pointRadius: 3,
+    borderColor: color,
+    backgroundColor: color,
+  }));
+}
+
 function renderTrainChart(view) {
   const wrap = document.getElementById("dataset-chart-wrap");
   const canvas = document.getElementById("dataset-chart");
@@ -179,15 +195,7 @@ function renderTrainChart(view) {
   dataChart = new window.Chart(canvas, {
     type: "scatter",
     data: {
-      datasets: [
-        {
-          data: points,
-          showLine: false,
-          pointRadius: 3,
-          borderColor: "#333",
-          backgroundColor: "#333",
-        },
-      ],
+      datasets: scatterDatasets(points),
     },
     options: {
       ...scatterOptions(),

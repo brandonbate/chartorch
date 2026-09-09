@@ -308,6 +308,20 @@ with open("params.txt", "w", encoding="utf-8") as _f:
 """
 
 
+def _py_class_colors(colors):
+    if not isinstance(colors, dict) or not colors:
+        return "{}"
+    items = []
+    for key, val in colors.items():
+        try:
+            cls = int(key)
+        except (TypeError, ValueError):
+            continue
+        if isinstance(val, str):
+            items.append(f"{cls}: {val!r}")
+    return "{" + ", ".join(items) + "}"
+
+
 def to_test_python(payload):
     parts = _parts(payload)
     if parts is None:
@@ -318,7 +332,7 @@ def to_test_python(payload):
     classify = parts["loss_name"] in CLASSIFICATION_LOSSES
     view = view_payload(parts["dataset"]) or {}
     test_mode = view.get("test")
-    if test_mode not in ("failures", "fit1d"):
+    if test_mode not in ("failures", "fit1d", "regions2d"):
         test_mode = "failures" if classify else None
     if parts["loss_name"] == "CrossEntropy":
         pred_lines = "        preds = outputs.argmax(dim=1)\n        gold = targets"
@@ -368,6 +382,101 @@ def to_test_python(payload):
         "failures": [],
         "plot": {"points": points, "curve": curve},
     }"""
+    elif test_mode == "regions2d":
+        colors_py = _py_class_colors(view.get("class_colors"))
+        if parts["loss_name"] == "CrossEntropy":
+            batch_pred = "outputs.argmax(dim=1)"
+            batch_gold = "targets.reshape(bs, -1)[:, 0].long()"
+            grid_pred = "gout.argmax(dim=1) if gout.ndim > 1 and gout.size(-1) > 1 else (gout.reshape(gout.size(0), -1)[:, 0] >= 0.5).long()"
+        elif parts["loss_name"] == "BCEWithLogits":
+            batch_pred = "(outputs.reshape(bs, -1)[:, 0] >= 0).long()"
+            batch_gold = "(targets.reshape(bs, -1)[:, 0] >= 0.5).long()"
+            grid_pred = "(gout.reshape(gout.size(0), -1)[:, 0] >= 0).long()"
+        elif parts["loss_name"] == "BCE":
+            batch_pred = "(outputs.reshape(bs, -1)[:, 0] >= 0.5).long()"
+            batch_gold = "(targets.reshape(bs, -1)[:, 0] >= 0.5).long()"
+            grid_pred = "(gout.reshape(gout.size(0), -1)[:, 0] >= 0.5).long()"
+        else:
+            batch_pred = "outputs.argmax(dim=1) if outputs.ndim > 1 and outputs.size(-1) > 1 else (outputs.reshape(bs, -1)[:, 0] >= 0.5).long()"
+            batch_gold = "targets.reshape(bs, -1)[:, 0].long()"
+            grid_pred = "gout.argmax(dim=1) if gout.ndim > 1 and gout.size(-1) > 1 else (gout.reshape(gout.size(0), -1)[:, 0] >= 0.5).long()"
+        eval_block = f"""    CLASS_COLORS = {colors_py}
+    points = []
+    n_correct = 0
+    for inputs, targets in test_dataloader:
+        outputs = model(inputs)
+        loss = criterion(outputs, targets)
+        bs = inputs.size(0)
+        if criterion.reduction == "mean":
+            running += loss.item() * bs
+        elif criterion.reduction == "sum":
+            running += loss.item()
+        else:
+            running += loss.sum().item()
+        n += bs
+        pred_c = {batch_pred}
+        gold_c = {batch_gold}
+        n_correct += int((pred_c == gold_c).sum().item())
+        for i in range(bs):
+            xy = inputs[i].reshape(-1)
+            cls = int(gold_c[i].item())
+            points.append({{
+                "x": float(xy[0].item()),
+                "y": float(xy[1].item() if xy.numel() > 1 else 0.0),
+                "color": CLASS_COLORS.get(cls, "#333333"),
+            }})
+    _loss = running / n if n else 0.0
+    accuracy = n_correct / n if n else 0.0
+    nx = 50
+    ny = 50
+    pred = []
+    x_min = y_min = 0.0
+    x_max = y_max = 1.0
+    if points:
+        xs = [p["x"] for p in points]
+        ys = [p["y"] for p in points]
+        x_min, x_max = min(xs), max(xs)
+        y_min, y_max = min(ys), max(ys)
+        if x_min == x_max:
+            x_min -= 0.5
+            x_max += 0.5
+        if y_min == y_max:
+            y_min -= 0.5
+            y_max += 0.5
+        pad_x = (x_max - x_min) * 0.1
+        pad_y = (y_max - y_min) * 0.1
+        x_min -= pad_x
+        x_max += pad_x
+        y_min -= pad_y
+        y_max += pad_y
+        dx = (x_max - x_min) / nx
+        dy = (y_max - y_min) / ny
+        gx = x_min + (torch.arange(nx, dtype=torch.float32) + 0.5) * dx
+        gy = y_min + (torch.arange(ny, dtype=torch.float32) + 0.5) * dy
+        grid = torch.stack((gx.repeat(ny), gy.repeat_interleave(nx)), dim=1)
+        gout = model(grid)
+        gpred = {grid_pred}
+        pred = [int(v) for v in gpred.detach().cpu().tolist()]
+    class_colors = {{str(k): v for k, v in CLASS_COLORS.items()}}
+    result = {{
+        "loss": _loss,
+        "n": n,
+        "accuracy": accuracy,
+        "n_failures": None,
+        "failures": [],
+        "plot": {{
+            "kind": "regions2d",
+            "x_min": x_min,
+            "x_max": x_max,
+            "y_min": y_min,
+            "y_max": y_max,
+            "nx": nx,
+            "ny": ny,
+            "pred": pred,
+            "class_colors": class_colors,
+            "points": points,
+        }},
+    }}"""
     elif test_mode == "failures" and classify:
         eval_block = f"""    failures = []
     idx = 0

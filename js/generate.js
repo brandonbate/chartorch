@@ -1,7 +1,7 @@
 import { incoming, outgoing, state } from "./model.js";
 import { closeEditor } from "./render.js";
 import { training } from "./training.js";
-import { chartRange, dataState, renderMedia, scatterOptions } from "./data.js";
+import { chartRange, dataState, renderMedia, scatterDatasets, scatterOptions } from "./data.js";
 
 const INVALID_MSG = "the network architecture is invalid";
 const GENERATE_FAIL_MSG = "failed to generate code";
@@ -410,17 +410,80 @@ function hideTestPlot() {
   }
 }
 
+function regionPlugin(plot) {
+  return {
+    id: "regions2d",
+    beforeDatasetsDraw(chart) {
+      const nx = plot.nx;
+      const ny = plot.ny;
+      const pred = plot.pred;
+      if (!nx || !ny || !Array.isArray(pred) || pred.length < nx * ny) return;
+      const xScale = chart.scales.x;
+      const yScale = chart.scales.y;
+      const ctx = chart.ctx;
+      const area = chart.chartArea;
+      const dx = (plot.x_max - plot.x_min) / nx;
+      const dy = (plot.y_max - plot.y_min) / ny;
+      const colors = plot.class_colors || {};
+      ctx.save();
+      ctx.beginPath();
+      ctx.rect(area.left, area.top, area.right - area.left, area.bottom - area.top);
+      ctx.clip();
+      for (let iy = 0; iy < ny; iy++) {
+        for (let ix = 0; ix < nx; ix++) {
+          const cls = pred[iy * nx + ix];
+          ctx.fillStyle = colors[String(cls)] || colors[cls] || "#dddddd";
+          const x0 = plot.x_min + ix * dx;
+          const x1 = x0 + dx;
+          const y0 = plot.y_min + iy * dy;
+          const y1 = y0 + dy;
+          const left = xScale.getPixelForValue(x0);
+          const right = xScale.getPixelForValue(x1);
+          const top = yScale.getPixelForValue(y1);
+          const bottom = yScale.getPixelForValue(y0);
+          ctx.fillRect(left, top, right - left + 1, bottom - top + 1);
+        }
+      }
+      ctx.restore();
+    },
+  };
+}
+
 function renderTestPlot(plot) {
   const wrap = document.getElementById("test-plot-wrap");
   const canvas = document.getElementById("test-plot");
   const points = Array.isArray(plot.points) ? plot.points : [];
   const curve = Array.isArray(plot.curve) ? plot.curve : [];
-  if (!points.length && !curve.length) {
+  const regions = plot.kind === "regions2d" && Array.isArray(plot.pred) && plot.pred.length;
+  if (!points.length && !curve.length && !regions) {
     hideTestPlot();
     return;
   }
   wrap.hidden = false;
   if (testPlotChart) testPlotChart.destroy();
+  if (plot.kind === "regions2d") {
+    const xr =
+      typeof plot.x_min === "number" && typeof plot.x_max === "number"
+        ? [plot.x_min, plot.x_max]
+        : chartRange(points.map((p) => p.x));
+    const yr =
+      typeof plot.y_min === "number" && typeof plot.y_max === "number"
+        ? [plot.y_min, plot.y_max]
+        : chartRange(points.map((p) => p.y));
+    testPlotChart = new window.Chart(canvas, {
+      type: "scatter",
+      data: { datasets: scatterDatasets(points) },
+      plugins: [regionPlugin(plot)],
+      options: {
+        ...scatterOptions(),
+        scales: {
+          x: xr ? { min: xr[0], max: xr[1] } : {},
+          y: yr ? { min: yr[0], max: yr[1] } : {},
+        },
+      },
+    });
+    return;
+  }
   const xs = points.map((p) => p.x).concat(curve.map((p) => p.x));
   const ys = points.map((p) => p.y).concat(curve.map((p) => p.y));
   const xr = chartRange(xs);
@@ -429,13 +492,7 @@ function renderTestPlot(plot) {
     type: "scatter",
     data: {
       datasets: [
-        {
-          data: points,
-          showLine: false,
-          pointRadius: 3,
-          borderColor: "#333",
-          backgroundColor: "#333",
-        },
+        ...scatterDatasets(points),
         {
           data: curve,
           showLine: true,
@@ -463,10 +520,15 @@ function applyTestResult(result) {
   const accEl = document.getElementById("test-accuracy");
   const failEl = document.getElementById("test-failures");
   if (result.plot) {
-    accEl.hidden = true;
     failEl.hidden = true;
     document.getElementById("fail-sample").hidden = true;
     failures = [];
+    if (result.accuracy == null) {
+      accEl.hidden = true;
+    } else {
+      accEl.hidden = false;
+      accEl.textContent = `test accuracy = ${result.accuracy}`;
+    }
     renderTestPlot(result.plot);
     return;
   }
