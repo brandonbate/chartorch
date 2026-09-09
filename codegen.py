@@ -427,8 +427,8 @@ def to_test_python(payload):
             }})
     _loss = running / n if n else 0.0
     accuracy = n_correct / n if n else 0.0
-    nx = 50
-    ny = 50
+    nx = 200
+    ny = 200
     pred = []
     x_min = y_min = 0.0
     x_max = y_max = 1.0

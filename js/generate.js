@@ -410,6 +410,27 @@ function hideTestPlot() {
   }
 }
 
+function mixWithWhite(hex) {
+  const raw = String(hex || "").replace(/^#/, "");
+  let r;
+  let g;
+  let b;
+  if (raw.length === 3) {
+    r = parseInt(raw[0] + raw[0], 16);
+    g = parseInt(raw[1] + raw[1], 16);
+    b = parseInt(raw[2] + raw[2], 16);
+  } else if (raw.length === 6) {
+    r = parseInt(raw.slice(0, 2), 16);
+    g = parseInt(raw.slice(2, 4), 16);
+    b = parseInt(raw.slice(4, 6), 16);
+  } else {
+    return "#eeeeee";
+  }
+  if (![r, g, b].every((v) => Number.isFinite(v))) return "#eeeeee";
+  const toHex = (v) => Math.round((v + 255) / 2).toString(16).padStart(2, "0");
+  return `#${toHex(r)}${toHex(g)}${toHex(b)}`;
+}
+
 function regionPlugin(plot) {
   return {
     id: "regions2d",
@@ -425,6 +446,8 @@ function regionPlugin(plot) {
       const dx = (plot.x_max - plot.x_min) / nx;
       const dy = (plot.y_max - plot.y_min) / ny;
       const colors = plot.class_colors || {};
+      const fills = {};
+      for (const key of Object.keys(colors)) fills[key] = mixWithWhite(colors[key]);
       ctx.save();
       ctx.beginPath();
       ctx.rect(area.left, area.top, area.right - area.left, area.bottom - area.top);
@@ -432,7 +455,7 @@ function regionPlugin(plot) {
       for (let iy = 0; iy < ny; iy++) {
         for (let ix = 0; ix < nx; ix++) {
           const cls = pred[iy * nx + ix];
-          ctx.fillStyle = colors[String(cls)] || colors[cls] || "#dddddd";
+          ctx.fillStyle = fills[String(cls)] || fills[cls] || "#eeeeee";
           const x0 = plot.x_min + ix * dx;
           const x1 = x0 + dx;
           const y0 = plot.y_min + iy * dy;
