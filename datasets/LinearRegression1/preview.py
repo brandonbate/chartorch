@@ -12,8 +12,8 @@ _datasets = {}
 
 def _load(split="train"):
     if split not in _datasets:
-        x = torch.tensor([1.0, 2.0, 3.0, 4.0, 5.0], dtype=torch.float32).view(-1, 1)
-        y = torch.tensor([2.2, 4.1, 5.9, 8.3, 9.8], dtype=torch.float32).view(-1, 1)
+        x = torch.tensor([4.0, 1.0, -2.0, -5.0], dtype=torch.float32).view(-1, 1)
+        y = torch.tensor([2.0, 0.0,  1.0, -4.0], dtype=torch.float32).view(-1, 1)
         _datasets[split] = TensorDataset(x, y)
     return _datasets[split]
 

@@ -30,6 +30,6 @@ class1 = [
     [4.0, -5.0],
 ]
 x = torch.tensor(class0 + class1, dtype=torch.float32)
-y = torch.tensor([0] * len(class0) + [1] * len(class1), dtype=torch.long)
+y = torch.tensor([0] * len(class0) + [1] * len(class1), dtype=torch.float32).unsqueeze(1)
 test_dataset = TensorDataset(x, y)
 test_dataloader = DataLoader(test_dataset, batch_size=batch_size, shuffle=False)

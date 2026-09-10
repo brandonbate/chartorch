@@ -47,7 +47,8 @@ class1 = [
 def _load(split="train"):
     if split not in _datasets:
         x = torch.tensor(class0 + class1, dtype=torch.float32)
-        y = torch.tensor([0] * len(class0) + [1] * len(class1), dtype=torch.long)
+        y = torch.tensor([0] * len(class0) + [1] * len(class1), dtype=torch.float32).unsqueeze(1)
+
         _datasets[split] = TensorDataset(x, y)
     return _datasets[split]
 
