@@ -40,11 +40,8 @@
           <div id="dataset-label"></div>
           <div id="dataset-nav">
             <button type="button" id="dataset-prev">Prev</button>
+            <input id="dataset-index" type="text" value="0" size="6">
             <button type="button" id="dataset-next">Next</button>
-          </div>
-          <div class="setting-arg">
-            <span class="arg-name">index</span> =
-            <input id="dataset-index" type="text" value="0">
           </div>
           <div id="dataset-size"></div>
           <div id="dataset-input-shape"></div>
@@ -109,7 +106,10 @@
         <textarea id="traceback" readonly hidden></textarea>
       </div>
       <div id="train-tab" class="tab-page" hidden>
-        <button type="button" id="btn-train" disabled>Train</button>
+        <div id="train-actions">
+          <button type="button" id="btn-train" disabled>Train</button>
+          <button type="button" id="btn-stop" hidden>Stop</button>
+        </div>
         <div id="loss-chart-wrap" hidden>
           <canvas id="loss-chart"></canvas>
         </div>
@@ -130,11 +130,8 @@
           <div id="fail-test-index"></div>
           <div id="fail-nav">
             <button type="button" id="fail-prev">Prev</button>
+            <input id="fail-index" type="text" value="0" size="6">
             <button type="button" id="fail-next">Next</button>
-          </div>
-          <div class="setting-arg">
-            <span class="arg-name">index</span> =
-            <input id="fail-index" type="text" value="0">
           </div>
           <div id="fail-size"></div>
         </div>

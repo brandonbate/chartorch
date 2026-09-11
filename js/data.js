@@ -242,7 +242,7 @@ function showSampleStatus(text) {
 }
 
 function renderPreview(payload) {
-  renderMedia(payload, document.getElementById("dataset-media"));
+  renderMedia(payload, document.getElementById("dataset-media"), { inputLabel: true });
   document.getElementById("dataset-label").textContent = `label = ${payload.label}`;
   document.getElementById("dataset-index").value = String(dataState.index);
   document.getElementById("dataset-size").textContent = `size = ${payload.size}`;
@@ -252,8 +252,19 @@ function renderPreview(payload) {
     `label_shape = ${formatShape(payload.label_shape)}`;
 }
 
-export function renderMedia(payload, el) {
+export function renderMedia(payload, el, opts = {}) {
   el.replaceChildren();
+  if (opts.inputLabel) {
+    const prefix = document.createElement("div");
+    prefix.className = "dataset-text";
+    if (payload.kind === "text") {
+      prefix.textContent = `input = ${payload.text ?? ""}`;
+      el.appendChild(prefix);
+      return;
+    }
+    prefix.textContent = "input =";
+    el.appendChild(prefix);
+  }
   if (payload.kind === "image") {
     const img = document.createElement("img");
     img.alt = String(payload.label ?? "");

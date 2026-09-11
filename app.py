@@ -12,6 +12,7 @@ from jail import (
     start,
     start_test,
     status,
+    stop_training,
     stored_epochs,
     stored_payload,
     test_status,
@@ -96,6 +97,16 @@ def train():
 @app.get("/api/train/status")
 def train_status():
     return status()
+
+
+@app.post("/api/train/stop")
+def train_stop():
+    result = stop_training()
+    if result == "idle":
+        abort(400)
+    if result != "ok":
+        abort(500)
+    return {"ok": True}
 
 
 @app.post("/api/test")

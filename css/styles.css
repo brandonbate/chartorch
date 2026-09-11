@@ -153,8 +153,20 @@ body {
 #dataset-nav,
 #fail-nav {
   display: flex;
+  align-items: center;
   gap: 6px;
   margin-top: 8px;
+}
+
+#dataset-index,
+#fail-index {
+  width: 6ch;
+  flex: none;
+  min-width: 0;
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 12px;
+  padding: 2px 4px;
+  text-align: center;
 }
 
 #dataset-nav button,
@@ -476,9 +488,16 @@ body[data-mode="connect"] .node {
   display: none;
 }
 
+#train-actions {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
 #generate-panel #panel-close,
 #generate-panel #btn-copy,
 #generate-panel #btn-train,
+#generate-panel #btn-stop,
 #generate-panel #btn-test {
   appearance: none;
   border: 1px solid #555;
@@ -494,11 +513,13 @@ body[data-mode="connect"] .node {
 #generate-panel #panel-close:hover,
 #generate-panel #btn-copy:hover,
 #generate-panel #btn-train:hover:not(:disabled),
+#generate-panel #btn-stop:hover:not(:disabled),
 #generate-panel #btn-test:hover:not(:disabled) {
   background: #4a4a4a;
 }
 
 #generate-panel #btn-train:disabled,
+#generate-panel #btn-stop:disabled,
 #generate-panel #btn-test:disabled {
   opacity: 0.45;
   cursor: default;

@@ -102,6 +102,11 @@ export function initGenerate() {
   document.getElementById("tab-code").addEventListener("click", () => setRightTab("code"));
   document.getElementById("tab-train").addEventListener("click", () => setRightTab("train"));
 
+  document.getElementById("btn-stop").addEventListener("click", () => {
+    if (!trainBusy) return;
+    fetch("/api/train/stop", { method: "POST" }).catch(() => {});
+  });
+
   btnTrain.addEventListener("click", () => {
     if (trainBusy || testBusy || !generatedCode) return;
     trainBusy = true;
@@ -208,6 +213,8 @@ function setRightTab(name) {
 
 function setButtons() {
   document.getElementById("btn-train").disabled = trainBusy || testBusy || !generatedCode;
+  const btnStop = document.getElementById("btn-stop");
+  btnStop.hidden = !trainBusy;
   const btnTest = document.getElementById("btn-test");
   btnTest.hidden = !testReady;
   btnTest.disabled = trainBusy || testBusy || !testReady;
@@ -296,8 +303,8 @@ function initChart(epochs) {
       animation: false,
       maintainAspectRatio: false,
       scales: {
-        x: { ticks: { stepSize: 1, autoSkip: false } },
-        y: {},
+        x: { ticks: { autoSkip: true, maxRotation: 0, minRotation: 0 } },
+        y: { ticks: { autoSkip: true } },
       },
       plugins: {
         legend: { display: false },
@@ -347,7 +354,11 @@ function startPoll() {
         if (s.done) {
           stopPoll();
           trainBusy = false;
-          if (s.exit_code) {
+          if (s.cancelled) {
+            testReady = false;
+            setButtons();
+            showTraceback("");
+          } else if (s.exit_code) {
             testReady = false;
             setButtons();
             showTraceback(s.traceback || "training failed");

@@ -23,6 +23,7 @@ _exit_code = None
 _params_printed = False
 _traceback = None
 _payload = None
+_cancelled = False
 
 
 def remember(script, epochs, payload=None):
@@ -55,7 +56,7 @@ def has_model():
 
 
 def start():
-    global _proc, _workdir, _reader, _done, _exit_code, _params_printed, _traceback
+    global _proc, _workdir, _reader, _done, _exit_code, _params_printed, _traceback, _cancelled
     with _lock:
         if _script is None:
             return "no_script"
@@ -71,6 +72,7 @@ def start():
         _exit_code = None
         _params_printed = False
         _traceback = None
+        _cancelled = False
         if not _spawn(workdir, script_path):
             shutil.rmtree(workdir, ignore_errors=True)
             _workdir = None
@@ -80,8 +82,18 @@ def start():
         return "ok"
 
 
+def stop_training():
+    global _cancelled
+    with _lock:
+        if _proc is None or _proc.poll() is not None:
+            return "idle"
+        _cancelled = True
+        _kill_proc()
+        return "ok"
+
+
 def start_test(script):
-    global _done, _exit_code, _traceback
+    global _done, _exit_code, _traceback, _cancelled
     with _lock:
         if _proc is not None and _proc.poll() is None:
             return "running"
@@ -97,6 +109,7 @@ def start_test(script):
         _done = False
         _exit_code = None
         _traceback = None
+        _cancelled = False
         if not _spawn(_workdir, script_path):
             return "failed"
         print("nsjail test started", flush=True)
@@ -106,13 +119,15 @@ def start_test(script):
 def status():
     with _lock:
         running = _proc is not None and _proc.poll() is None
+        done = _done and not running
         return {
             "running": running,
             "points": _read_metrics(),
-            "done": _done and not running,
+            "done": done,
             "exit_code": _exit_code,
             "epochs": _epochs,
-            "traceback": _traceback if _done and _exit_code not in (None, 0) else None,
+            "cancelled": bool(_cancelled) if done else False,
+            "traceback": _traceback if done and _exit_code not in (None, 0) else None,
         }
 
 
@@ -359,7 +374,7 @@ def _extract_traceback(text):
 
 
 def _pump(proc):
-    global _done, _exit_code, _traceback
+    global _done, _exit_code, _traceback, _cancelled
     chunks = []
     if proc.stdout is not None:
         for line in proc.stdout:
@@ -368,7 +383,7 @@ def _pump(proc):
     code = proc.wait()
     _print_params()
     _exit_code = code
-    if code != 0:
+    if code != 0 and not _cancelled:
         _traceback = _extract_traceback("".join(chunks))
     else:
         _traceback = None
