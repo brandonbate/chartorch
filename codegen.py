@@ -264,6 +264,7 @@ def to_python(payload):
     return f"""import json
 import torch
 import torch.nn as nn
+torch.set_num_threads(2)
 
 batch_size = {parts["batch_size"]}
 shuffle = {python_value({"type": "bool"}, parts["shuffle"])}
