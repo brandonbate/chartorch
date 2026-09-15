@@ -1,6 +1,7 @@
+import uuid
 from pathlib import Path
 
-from flask import Flask, abort, request, send_from_directory
+from flask import Flask, abort, g, request, send_from_directory
 
 from codegen import to_python, to_test_python
 from dataset_store import list_datasets, preview_payload, view_payload
@@ -16,10 +17,29 @@ from jail import (
     stored_epochs,
     stored_payload,
     test_status,
+    valid_sid,
 )
 
 ROOT = Path(__file__).resolve().parent
+COOKIE = "netgui_sid"
 app = Flask(__name__)
+
+
+def current_sid():
+    raw = request.cookies.get(COOKIE)
+    if valid_sid(raw):
+        return raw
+    sid = str(uuid.uuid4())
+    g.set_sid = sid
+    return sid
+
+
+@app.after_request
+def attach_sid(resp):
+    sid = getattr(g, "set_sid", None)
+    if sid:
+        resp.set_cookie(COOKIE, sid, httponly=True, samesite="Lax", path="/")
+    return resp
 
 
 @app.get("/")
@@ -75,33 +95,34 @@ def generate():
     if script is None:
         abort(400)
     epochs = (payload.get("training") or {}).get("epochs")
-    remember(script, epochs, payload)
+    remember(current_sid(), script, epochs, payload)
     print(script, flush=True)
     return {"code": script}
 
 
 @app.post("/api/train")
 def train():
-    if not has_script():
+    sid = current_sid()
+    if not has_script(sid):
         abort(400)
-    if is_running():
+    if is_running(sid):
         abort(409)
-    result = start()
+    result = start(sid)
     if result == "running":
         abort(409)
     if result != "ok":
         abort(500)
-    return {"epochs": stored_epochs()}
+    return {"epochs": stored_epochs(sid)}
 
 
 @app.get("/api/train/status")
 def train_status():
-    return status()
+    return status(current_sid())
 
 
 @app.post("/api/train/stop")
 def train_stop():
-    result = stop_training()
+    result = stop_training(current_sid())
     if result == "idle":
         abort(400)
     if result != "ok":
@@ -111,15 +132,16 @@ def train_stop():
 
 @app.post("/api/test")
 def test():
-    if is_running():
+    sid = current_sid()
+    if is_running(sid):
         abort(409)
-    if not has_model():
+    if not has_model(sid):
         abort(400)
-    payload = stored_payload()
+    payload = stored_payload(sid)
     script = to_test_python(payload) if payload is not None else None
     if script is None:
         abort(400)
-    result = start_test(script)
+    result = start_test(sid, script)
     if result == "running":
         abort(409)
     if result != "ok":
@@ -129,7 +151,7 @@ def test():
 
 @app.get("/api/test/status")
 def test_status_route():
-    return test_status()
+    return test_status(current_sid())
 
 
 if __name__ == "__main__":
