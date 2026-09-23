@@ -323,6 +323,34 @@ def _py_class_colors(colors):
     return "{" + ", ".join(items) + "}"
 
 
+def _py_chart_specs(charts):
+    specs = []
+    if isinstance(charts, list):
+        for item in charts:
+            if not isinstance(item, dict):
+                continue
+            try:
+                xi = int(item["xi"])
+                yi = int(item["yi"])
+            except (KeyError, TypeError, ValueError):
+                continue
+            cid = item.get("id")
+            if not isinstance(cid, str) or not cid:
+                cid = f"{xi}-{yi}"
+            label = item.get("label") if isinstance(item.get("label"), str) else cid
+            x_label = item.get("x_label") if isinstance(item.get("x_label"), str) else ""
+            y_label = item.get("y_label") if isinstance(item.get("y_label"), str) else ""
+            specs.append(
+                "{"
+                f"'id': {cid!r}, 'xi': {xi}, 'yi': {yi}, "
+                f"'label': {label!r}, 'x_label': {x_label!r}, 'y_label': {y_label!r}"
+                "}"
+            )
+    if not specs:
+        specs.append("{'id': '0-1', 'xi': 0, 'yi': 1, 'label': '', 'x_label': '', 'y_label': ''}")
+    return "[" + ", ".join(specs) + "]"
+
+
 def to_test_python(payload):
     parts = _parts(payload)
     if parts is None:
@@ -401,8 +429,11 @@ def to_test_python(payload):
             batch_pred = "outputs.argmax(dim=1) if outputs.ndim > 1 and outputs.size(-1) > 1 else (outputs.reshape(bs, -1)[:, 0] >= 0.5).long()"
             batch_gold = "targets.reshape(bs, -1)[:, 0].long()"
             grid_pred = "gout.argmax(dim=1) if gout.ndim > 1 and gout.size(-1) > 1 else (gout.reshape(gout.size(0), -1)[:, 0] >= 0.5).long()"
+        charts_py = _py_chart_specs(view.get("charts"))
         eval_block = f"""    CLASS_COLORS = {colors_py}
-    points = []
+    CHARTS = {charts_py}
+    feats = []
+    golds = []
     n_correct = 0
     for inputs, targets in test_dataloader:
         outputs = model(inputs)
@@ -419,53 +450,69 @@ def to_test_python(payload):
         gold_c = {batch_gold}
         n_correct += int((pred_c == gold_c).sum().item())
         for i in range(bs):
-            xy = inputs[i].reshape(-1)
-            cls = int(gold_c[i].item())
-            points.append({{
-                "x": float(xy[0].item()),
-                "y": float(xy[1].item() if xy.numel() > 1 else 0.0),
-                "color": CLASS_COLORS.get(cls, "#333333"),
-            }})
+            feats.append(inputs[i].reshape(-1).detach().cpu())
+            golds.append(int(gold_c[i].item()))
     _loss = running / n if n else 0.0
     accuracy = n_correct / n if n else 0.0
+    feat_mat = torch.stack(feats) if feats else None
+    feat_dim = int(feat_mat.size(1)) if feat_mat is not None else 0
+    feat_mean = feat_mat.mean(dim=0) if feat_mat is not None else None
     nx = 200
     ny = 200
-    pred = []
-    x_min = y_min = 0.0
-    x_max = y_max = 1.0
-    if points:
-        xs = [p["x"] for p in points]
-        ys = [p["y"] for p in points]
-        x_min, x_max = min(xs), max(xs)
-        y_min, y_max = min(ys), max(ys)
-        if x_min == x_max:
-            x_min -= 0.5
-            x_max += 0.5
-        if y_min == y_max:
-            y_min -= 0.5
-            y_max += 0.5
-        pad_x = (x_max - x_min) * 0.1
-        pad_y = (y_max - y_min) * 0.1
-        x_min -= pad_x
-        x_max += pad_x
-        y_min -= pad_y
-        y_max += pad_y
-        dx = (x_max - x_min) / nx
-        dy = (y_max - y_min) / ny
-        gx = x_min + (torch.arange(nx, dtype=torch.float32) + 0.5) * dx
-        gy = y_min + (torch.arange(ny, dtype=torch.float32) + 0.5) * dy
-        grid = torch.stack((gx.repeat(ny), gy.repeat_interleave(nx)), dim=1)
-        gout = model(grid)
-        gpred = {grid_pred}
-        pred = [int(v) for v in gpred.detach().cpu().tolist()]
     class_colors = {{str(k): v for k, v in CLASS_COLORS.items()}}
-    result = {{
-        "loss": _loss,
-        "n": n,
-        "accuracy": accuracy,
-        "n_failures": None,
-        "failures": [],
-        "plot": {{
+    plot_charts = []
+    for spec in CHARTS:
+        xi = int(spec["xi"])
+        yi = int(spec["yi"])
+        points = []
+        if feat_mat is not None:
+            for i in range(feat_mat.size(0)):
+                cls = golds[i]
+                x = float(feat_mat[i, xi].item()) if xi < feat_dim else 0.0
+                y = float(feat_mat[i, yi].item()) if yi < feat_dim else 0.0
+                points.append({{
+                    "x": x,
+                    "y": y,
+                    "color": CLASS_COLORS.get(cls, "#333333"),
+                }})
+        pred = []
+        x_min = y_min = 0.0
+        x_max = y_max = 1.0
+        if points:
+            xs = [p["x"] for p in points]
+            ys = [p["y"] for p in points]
+            x_min, x_max = min(xs), max(xs)
+            y_min, y_max = min(ys), max(ys)
+            if x_min == x_max:
+                x_min -= 0.5
+                x_max += 0.5
+            if y_min == y_max:
+                y_min -= 0.5
+                y_max += 0.5
+            pad_x = (x_max - x_min) * 0.1
+            pad_y = (y_max - y_min) * 0.1
+            x_min -= pad_x
+            x_max += pad_x
+            y_min -= pad_y
+            y_max += pad_y
+            if feat_dim > 0:
+                dx = (x_max - x_min) / nx
+                dy = (y_max - y_min) / ny
+                gx = x_min + (torch.arange(nx, dtype=torch.float32) + 0.5) * dx
+                gy = y_min + (torch.arange(ny, dtype=torch.float32) + 0.5) * dy
+                grid = feat_mean.repeat(nx * ny, 1)
+                if 0 <= xi < feat_dim:
+                    grid[:, xi] = gx.repeat(ny)
+                if 0 <= yi < feat_dim:
+                    grid[:, yi] = gy.repeat_interleave(nx)
+                gout = model(grid)
+                gpred = {grid_pred}
+                pred = [int(v) for v in gpred.detach().cpu().tolist()]
+        plot_charts.append({{
+            "id": spec["id"],
+            "label": spec["label"],
+            "x_label": spec.get("x_label", ""),
+            "y_label": spec.get("y_label", ""),
             "kind": "regions2d",
             "x_min": x_min,
             "x_max": x_max,
@@ -476,7 +523,18 @@ def to_test_python(payload):
             "pred": pred,
             "class_colors": class_colors,
             "points": points,
-        }},
+        }})
+    if len(plot_charts) == 1:
+        plot = plot_charts[0]
+    else:
+        plot = {{"kind": "regions2d", "charts": plot_charts}}
+    result = {{
+        "loss": _loss,
+        "n": n,
+        "accuracy": accuracy,
+        "n_failures": None,
+        "failures": [],
+        "plot": plot,
     }}"""
     elif test_mode == "failures" and classify:
         eval_block = f"""    failures = []

@@ -1,7 +1,7 @@
 import { incoming, outgoing, state } from "./model.js";
 import { closeEditor } from "./render.js";
 import { training } from "./training.js";
-import { chartRange, dataState, renderMedia, scatterDatasets, scatterOptions } from "./data.js";
+import { chartById, chartRange, dataState, fillChartSelect, renderMedia, scaleAxis, scatterDatasets, scatterOptions } from "./data.js";
 
 const INVALID_MSG = "the network architecture is invalid";
 const GENERATE_FAIL_MSG = "failed to generate code";
@@ -16,6 +16,7 @@ let testBusy = false;
 let pollTimer = null;
 let lossChart = null;
 let testPlotChart = null;
+let lastTestPlot = null;
 let failures = [];
 let failIndex = 0;
 let failLoading = false;
@@ -181,6 +182,11 @@ export function initGenerate() {
       e.preventDefault();
       failIndexInput.blur();
     }
+  });
+
+  document.getElementById("test-chart-pair").addEventListener("change", (e) => {
+    dataState.chartId = e.target.value;
+    if (lastTestPlot) renderTestPlot(lastTestPlot);
   });
 
   document.getElementById("panel-close").addEventListener("click", () => {
@@ -413,8 +419,9 @@ function startTestPoll() {
 }
 
 function hideTestPlot() {
-  const wrap = document.getElementById("test-plot-wrap");
-  wrap.hidden = true;
+  lastTestPlot = null;
+  document.getElementById("test-plot-wrap").hidden = true;
+  document.getElementById("test-chart-pair").hidden = true;
   if (testPlotChart) {
     testPlotChart.destroy();
     testPlotChart = null;
@@ -484,35 +491,52 @@ function regionPlugin(plot) {
 }
 
 function renderTestPlot(plot) {
+  lastTestPlot = plot;
+  const charts = plot && Array.isArray(plot.charts) && plot.charts.length > 1 ? plot.charts : null;
+  const sel = document.getElementById("test-chart-pair");
+  let current = plot;
+  if (charts) {
+    dataState.chartId = fillChartSelect(sel, charts, dataState.chartId, charts[charts.length - 1].id);
+    current = chartById(charts, dataState.chartId) || plot;
+  } else {
+    sel.hidden = true;
+  }
   const wrap = document.getElementById("test-plot-wrap");
   const canvas = document.getElementById("test-plot");
-  const points = Array.isArray(plot.points) ? plot.points : [];
-  const curve = Array.isArray(plot.curve) ? plot.curve : [];
-  const regions = plot.kind === "regions2d" && Array.isArray(plot.pred) && plot.pred.length;
+  const points = Array.isArray(current.points) ? current.points : [];
+  const curve = Array.isArray(current.curve) ? current.curve : [];
+  const regions = current.kind === "regions2d" && Array.isArray(current.pred) && current.pred.length;
   if (!points.length && !curve.length && !regions) {
-    hideTestPlot();
+    wrap.hidden = true;
+    sel.hidden = true;
+    if (testPlotChart) {
+      testPlotChart.destroy();
+      testPlotChart = null;
+    }
     return;
   }
   wrap.hidden = false;
   if (testPlotChart) testPlotChart.destroy();
-  if (plot.kind === "regions2d") {
+  const xLabel = current.x_label || "";
+  const yLabel = current.y_label || "";
+  if (current.kind === "regions2d") {
     const xr =
-      typeof plot.x_min === "number" && typeof plot.x_max === "number"
-        ? [plot.x_min, plot.x_max]
+      typeof current.x_min === "number" && typeof current.x_max === "number"
+        ? [current.x_min, current.x_max]
         : chartRange(points.map((p) => p.x));
     const yr =
-      typeof plot.y_min === "number" && typeof plot.y_max === "number"
-        ? [plot.y_min, plot.y_max]
+      typeof current.y_min === "number" && typeof current.y_max === "number"
+        ? [current.y_min, current.y_max]
         : chartRange(points.map((p) => p.y));
     testPlotChart = new window.Chart(canvas, {
       type: "scatter",
       data: { datasets: scatterDatasets(points) },
-      plugins: [regionPlugin(plot)],
+      plugins: [regionPlugin(current)],
       options: {
         ...scatterOptions(),
         scales: {
-          x: xr ? { min: xr[0], max: xr[1] } : {},
-          y: yr ? { min: yr[0], max: yr[1] } : {},
+          x: scaleAxis(xr, xLabel),
+          y: scaleAxis(yr, yLabel),
         },
       },
     });
@@ -539,8 +563,8 @@ function renderTestPlot(plot) {
     options: {
       ...scatterOptions(),
       scales: {
-        x: xr ? { min: xr[0], max: xr[1] } : {},
-        y: yr ? { min: yr[0], max: yr[1] } : {},
+        x: scaleAxis(xr, xLabel),
+        y: scaleAxis(yr, yLabel),
       },
     },
   });

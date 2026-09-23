@@ -2,6 +2,7 @@ export const dataState = {
   dataset: "MNIST",
   index: 0,
   size: null,
+  chartId: null,
 };
 
 let requestSeq = 0;
@@ -17,6 +18,7 @@ export function initData() {
   const btnPrev = document.getElementById("dataset-prev");
   const btnNext = document.getElementById("dataset-next");
   const indexInput = document.getElementById("dataset-index");
+  const chartPair = document.getElementById("dataset-chart-pair");
 
   const setPanelMode = (mode) => {
     document.body.dataset.panelMode = mode;
@@ -68,6 +70,11 @@ export function initData() {
       e.preventDefault();
       indexInput.blur();
     }
+  });
+
+  chartPair.addEventListener("change", () => {
+    dataState.chartId = chartPair.value;
+    renderTrainChart(dataView);
   });
 
   setNavEnabled();
@@ -160,6 +167,38 @@ export function scatterOptions() {
   };
 }
 
+export function scaleAxis(range, title) {
+  const spec = range ? { min: range[0], max: range[1] } : {};
+  if (title) spec.title = { display: true, text: title };
+  return spec;
+}
+
+export function fillChartSelect(sel, charts, currentId, fallbackId) {
+  sel.replaceChildren();
+  if (!Array.isArray(charts) || charts.length <= 1) {
+    sel.hidden = true;
+    return currentId;
+  }
+  let chosen = currentId;
+  if (!charts.some((c) => c.id === chosen)) {
+    chosen = charts.some((c) => c.id === fallbackId) ? fallbackId : charts[0].id;
+  }
+  for (const c of charts) {
+    const opt = document.createElement("option");
+    opt.value = c.id;
+    opt.textContent = c.label || c.id;
+    if (c.id === chosen) opt.selected = true;
+    sel.appendChild(opt);
+  }
+  sel.hidden = false;
+  return chosen;
+}
+
+export function chartById(charts, id) {
+  if (!Array.isArray(charts) || !charts.length) return null;
+  return charts.find((c) => c.id === id) || charts[0];
+}
+
 export function scatterDatasets(points) {
   const groups = new Map();
   for (const p of points) {
@@ -176,12 +215,31 @@ export function scatterDatasets(points) {
   }));
 }
 
+let dataView = null;
+
 function renderTrainChart(view) {
+  dataView = view;
   const wrap = document.getElementById("dataset-chart-wrap");
   const canvas = document.getElementById("dataset-chart");
-  const points = view && view.train_chart && Array.isArray(view.points) ? view.points : null;
+  const sel = document.getElementById("dataset-chart-pair");
+  const charts = view && view.train_chart && Array.isArray(view.charts) && view.charts.length > 1 ? view.charts : null;
+  let points = view && view.train_chart && Array.isArray(view.points) ? view.points : null;
+  let xLabel = "";
+  let yLabel = "";
+  if (charts) {
+    dataState.chartId = fillChartSelect(sel, charts, dataState.chartId, view.chart_id);
+    const current = chartById(charts, dataState.chartId);
+    if (current && Array.isArray(current.points)) points = current.points;
+    if (current) {
+      xLabel = current.x_label || "";
+      yLabel = current.y_label || "";
+    }
+  } else {
+    sel.hidden = true;
+  }
   if (!points || !points.length) {
     wrap.hidden = true;
+    sel.hidden = true;
     if (dataChart) {
       dataChart.destroy();
       dataChart = null;
@@ -200,8 +258,8 @@ function renderTrainChart(view) {
     options: {
       ...scatterOptions(),
       scales: {
-        x: xr ? { min: xr[0], max: xr[1] } : {},
-        y: yr ? { min: yr[0], max: yr[1] } : {},
+        x: scaleAxis(xr, xLabel),
+        y: scaleAxis(yr, yLabel),
       },
     },
   });

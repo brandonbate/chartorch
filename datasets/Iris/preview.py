@@ -3,9 +3,19 @@ from torch.utils.data import TensorDataset
 
 VIEW = {
     "sample": "text",
-    "train_chart": False,
-    "test": "failures",
+    "train_chart": True,
+    "test": "regions2d",
 }
+
+CLASS_COLORS = {
+    0: "#1a73e8",
+    1: "#d93025",
+    2: "#188038",
+}
+
+FEATURE_NAMES = ["sepal length", "sepal width", "petal length", "petal width"]
+CHART_PAIRS = [(0, 1), (0, 2), (0, 3), (1, 2), (1, 3), (2, 3)]
+DEFAULT_CHART = "2-3"
 
 _datasets = {}
 
@@ -221,3 +231,31 @@ def preview(index=0, split="train"):
         "index": index,
         "size": size,
     }
+
+
+def chart(split="train"):
+    if split not in ("train", "test"):
+        split = "train"
+    dataset = _load(split)
+    charts = []
+    for xi, yi in CHART_PAIRS:
+        points = []
+        for i in range(len(dataset)):
+            inp, label = dataset[i]
+            xy = inp.reshape(-1)
+            cls = int(label.reshape(-1)[0].item())
+            points.append({
+                "x": float(xy[xi].item()),
+                "y": float(xy[yi].item()),
+                "color": CLASS_COLORS.get(cls, "#333333"),
+            })
+        charts.append({
+            "id": f"{xi}-{yi}",
+            "label": f"{FEATURE_NAMES[xi]} vs {FEATURE_NAMES[yi]}",
+            "xi": xi,
+            "yi": yi,
+            "x_label": FEATURE_NAMES[xi],
+            "y_label": FEATURE_NAMES[yi],
+            "points": points,
+        })
+    return charts

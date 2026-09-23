@@ -480,13 +480,41 @@ def _parse_color(value):
 def _parse_plot(raw):
     if not isinstance(raw, dict):
         return None
+    if raw.get("kind") == "regions2d" and isinstance(raw.get("charts"), list):
+        charts = []
+        for item in raw["charts"]:
+            if not isinstance(item, dict):
+                continue
+            parsed = _parse_regions2d(item, _parse_xy_list(item.get("points")))
+            if parsed is None:
+                continue
+            _attach_chart_meta(parsed, item)
+            charts.append(parsed)
+        if not charts:
+            return None
+        if len(charts) == 1:
+            return charts[0]
+        return {"kind": "regions2d", "charts": charts}
     points = _parse_xy_list(raw.get("points"))
     curve = _parse_xy_list(raw.get("curve"))
     if raw.get("kind") == "regions2d":
-        return _parse_regions2d(raw, points)
+        parsed = _parse_regions2d(raw, points)
+        if parsed is not None:
+            _attach_chart_meta(parsed, raw)
+        return parsed
     if not points and not curve:
         return None
     return {"points": points, "curve": curve}
+
+
+def _attach_chart_meta(parsed, raw):
+    cid = raw.get("id")
+    if isinstance(cid, str) and cid:
+        parsed["id"] = cid
+    for key in ("label", "x_label", "y_label"):
+        val = raw.get(key)
+        if isinstance(val, str) and val:
+            parsed[key] = val
 
 
 def _parse_regions2d(raw, points):

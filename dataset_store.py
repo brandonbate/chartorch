@@ -95,22 +95,68 @@ def view_payload(dataset_id):
     if test not in ("failures", "fit1d", "regions2d"):
         test = None
     points = None
-    if train_chart:
-        fn = getattr(mod, "chart", None)
-        if callable(fn):
-            try:
-                raw = fn("train")
-            except Exception:
-                raw = None
-            if isinstance(raw, list):
-                points = raw
+    charts = None
+    chart_id = None
+    fn = getattr(mod, "chart", None)
+    if (train_chart or test == "regions2d") and callable(fn):
+        try:
+            raw = fn("train")
+        except Exception:
+            raw = None
+        parsed = _charts(raw)
+        if parsed:
+            charts = parsed
+            default = getattr(mod, "DEFAULT_CHART", None)
+            if not any(item["id"] == default for item in charts):
+                default = charts[0]["id"]
+            chart_id = default
+            points = next((item["points"] for item in charts if item["id"] == default), charts[0]["points"])
+        elif isinstance(raw, list):
+            points = raw
+    if not train_chart:
+        points = None
     return {
         "sample": sample,
         "train_chart": train_chart,
         "test": test,
         "points": points,
+        "charts": charts,
+        "chart_id": chart_id,
         "class_colors": _class_colors(mod, view),
     }
+
+
+def _charts(raw):
+    if not isinstance(raw, list) or not raw:
+        return None
+    first = raw[0]
+    if not isinstance(first, dict) or "points" not in first:
+        return None
+    out = []
+    for item in raw:
+        if not isinstance(item, dict):
+            continue
+        cid = item.get("id")
+        pts = item.get("points")
+        xi = item.get("xi")
+        yi = item.get("yi")
+        if not isinstance(cid, str) or not cid:
+            continue
+        if not isinstance(pts, list) or not isinstance(xi, int) or not isinstance(yi, int):
+            continue
+        x_label = item.get("x_label")
+        y_label = item.get("y_label")
+        label = item.get("label")
+        out.append({
+            "id": cid,
+            "label": label if isinstance(label, str) and label else cid,
+            "xi": xi,
+            "yi": yi,
+            "x_label": x_label if isinstance(x_label, str) else "",
+            "y_label": y_label if isinstance(y_label, str) else "",
+            "points": pts,
+        })
+    return out or None
 
 
 def _class_colors(mod, view):

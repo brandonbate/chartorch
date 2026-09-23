@@ -103,7 +103,9 @@ body {
 
 #optimizer-type,
 #loss-type,
-#dataset-type {
+#dataset-type,
+#dataset-chart-pair,
+#test-chart-pair {
   width: 100%;
   font: inherit;
   font-size: 13px;
@@ -119,7 +121,9 @@ body {
 }
 
 #dataset-chart-wrap[hidden],
-#test-plot-wrap[hidden] {
+#test-plot-wrap[hidden],
+#dataset-chart-pair[hidden],
+#test-chart-pair[hidden] {
   display: none;
 }
 
