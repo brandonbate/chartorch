@@ -615,7 +615,7 @@ def _pump(sid, workdir, proc):
             print(line, end="", flush=True)
             chunks.append(line)
     code = proc.wait()
-    _print_params(workdir)
+    #_print_params(workdir)
     meta = _read_meta(workdir)
     if meta.get("pid") != proc.pid:
         _pop_local(sid, proc)
