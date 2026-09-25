@@ -18,22 +18,15 @@ data = torch.load('datasets/Letters/letters_dataset.pt', weights_only=True)
 x = data['images']
 y = data['labels']
 
-# Load the dataset from the file
-test_data = torch.load('datasets/Letters/test_letters_dataset.pt', weights_only=True)
-test_x = test_data['images']
-test_y = test_data['labels']
-
-
 # Create Dataset and DataLoader
 dataset = TensorDataset(x, y)
-test_dataset = TensorDataset(test_x, test_y)
 
 def _load(split="train"):
     if split not in _datasets:
         if split == "train":
             _datasets[split] = dataset
         else:
-            _datasets[split] = test_dataset
+            _datasets[split] = dataset
     return _datasets[split]
 
 
