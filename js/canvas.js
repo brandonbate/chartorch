@@ -187,7 +187,7 @@ function onDblClick(e) {
 }
 
 function onKeyDown(e) {
-  const typing = e.target.closest("input, select");
+  const typing = e.target.closest("input, select, textarea");
   if (e.key === "Escape") {
     if (state.editing) {
       closeEditor(false);
@@ -201,13 +201,15 @@ function onKeyDown(e) {
     return;
   }
   if (typing) return;
-  if (e.key !== "Delete") return;
+  if (e.key !== "Delete" && e.key !== "Backspace") return;
   const node = selectedNode();
   const edge = selectedEdge();
   if (node) {
+    e.preventDefault();
     removeNode(node.id);
     render();
   } else if (edge) {
+    e.preventDefault();
     removeEdge(edge.id);
     render();
   }
