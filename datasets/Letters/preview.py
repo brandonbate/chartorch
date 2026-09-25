@@ -20,8 +20,8 @@ y = data['labels']
 
 # Load the dataset from the file
 test_data = torch.load('datasets/Letters/test_letters_dataset.pt', weights_only=True)
-test_x = data['images']
-test_y = data['labels']
+test_x = test_data['images']
+test_y = test_data['labels']
 
 
 # Create Dataset and DataLoader
@@ -33,7 +33,6 @@ def _load(split="train"):
         if split == "train":
             _datasets[split] = dataset
         else:
-            print(split)
             _datasets[split] = test_dataset
     return _datasets[split]
 
