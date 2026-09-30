@@ -4,7 +4,8 @@ import torch
 from torch.utils.data import TensorDataset
 
 # Load the dataset from the file
-data = torch.load('../../../datasets/Letters/test_letters_dataset.pt', weights_only=True)
+# We use the training data as test data here.
+data = torch.load('../../../datasets/Letters/letters_dataset.pt', weights_only=True)
 x = data['images']
 y = data['labels']
 
