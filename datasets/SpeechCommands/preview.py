@@ -104,7 +104,7 @@ def preview(index=0, split="train"):
         "mime": "audio/wav",
         "data": _wav_b64(waveform, sample_rate),
         "label": str(label),
-        "input_shape": input_shape,
+        "input_shape": [32,32],
         "label_shape": [],
         "index": index,
         "size": size,

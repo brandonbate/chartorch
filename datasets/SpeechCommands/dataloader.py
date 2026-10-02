@@ -1,6 +1,7 @@
 import torch
 from torch.utils.data import DataLoader, Dataset
 from torchaudio.datasets import SPEECHCOMMANDS
+import torchaudio
 
 LABELS = [
     "backward",
@@ -45,6 +46,12 @@ N_SAMPLES = 16000
 class SpeechCommandsCls(Dataset):
     def __init__(self, subset):
         self.ds = SPEECHCOMMANDS(root="./data", download=True, subset=subset)
+        # Initialize the transform to generate a 32x32 matrix
+        self.mel_transform = torchaudio.transforms.MelSpectrogram(
+            sample_rate=16000, 
+            n_mels=32, 
+            hop_length=512
+        )
 
     def __len__(self):
         return len(self.ds)
@@ -56,8 +63,11 @@ class SpeechCommandsCls(Dataset):
             waveform = waveform[..., :N_SAMPLES]
         elif t < N_SAMPLES:
             waveform = torch.nn.functional.pad(waveform, (0, N_SAMPLES - t))
-        return waveform, LABELS.index(label)
+ 
+        # Convert 1D waveform to 2D Mel-spectrogram
+        waveform = self.mel_transform(waveform)
 
+        return waveform, LABELS.index(label)
 
 dataset = SpeechCommandsCls("training")
 dataloader = DataLoader(dataset, batch_size=batch_size, shuffle=shuffle)
