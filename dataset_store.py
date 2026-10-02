@@ -88,7 +88,7 @@ def view_payload(dataset_id):
     if not isinstance(view, dict):
         view = {}
     sample = view.get("sample", "image")
-    if sample not in ("image", "text"):
+    if sample not in ("image", "text", "audio"):
         sample = "image"
     train_chart = bool(view.get("train_chart"))
     test = view.get("test")
