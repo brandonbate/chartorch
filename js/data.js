@@ -3,6 +3,7 @@ export const dataState = {
   index: 0,
   size: null,
   chartId: null,
+  numLabels: null,
 };
 
 let requestSeq = 0;
@@ -35,6 +36,7 @@ export function initData() {
     dataState.dataset = sel.value;
     dataState.index = 0;
     dataState.size = null;
+    dataState.numLabels = null;
     indexInput.value = "0";
     loadView(dataState.dataset);
     loadPreview(dataState.dataset, 0, true);
@@ -129,10 +131,14 @@ function loadView(id) {
       return r.json();
     })
     .then((view) => {
+      dataState.numLabels = typeof view.num_labels === "number" ? view.num_labels : null;
       renderTrainChart(view);
+      setNumLabels();
     })
     .catch(() => {
+      dataState.numLabels = null;
       renderTrainChart(null);
+      setNumLabels();
     });
 }
 
@@ -297,6 +303,7 @@ function showSampleStatus(text) {
   document.getElementById("dataset-size").textContent = "";
   document.getElementById("dataset-input-shape").textContent = "";
   document.getElementById("dataset-label-shape").textContent = "";
+  document.getElementById("dataset-num-labels").textContent = "";
 }
 
 function renderPreview(payload) {
@@ -308,6 +315,12 @@ function renderPreview(payload) {
     `input_shape = ${formatShape(displayInputShape(payload.input_shape))}`;
   document.getElementById("dataset-label-shape").textContent =
     `label_shape = ${formatShape(payload.label_shape)}`;
+  setNumLabels();
+}
+
+function setNumLabels() {
+  document.getElementById("dataset-num-labels").textContent =
+    `num_labels = ${dataState.numLabels == null ? "NA" : dataState.numLabels}`;
 }
 
 export function renderMedia(payload, el, opts = {}) {

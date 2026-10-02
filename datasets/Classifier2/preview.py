@@ -5,6 +5,7 @@ VIEW = {
     "sample": "text",
     "train_chart": True,
     "test": "regions2d",
+    "num_labels": 2,
 }
 
 CLASS_COLORS = {

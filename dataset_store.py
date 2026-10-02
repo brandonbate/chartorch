@@ -115,6 +115,9 @@ def view_payload(dataset_id):
             points = raw
     if not train_chart:
         points = None
+    num_labels = view.get("num_labels")
+    if isinstance(num_labels, bool) or not isinstance(num_labels, int) or num_labels < 1:
+        num_labels = None
     return {
         "sample": sample,
         "train_chart": train_chart,
@@ -123,6 +126,7 @@ def view_payload(dataset_id):
         "charts": charts,
         "chart_id": chart_id,
         "class_colors": _class_colors(mod, view),
+        "num_labels": num_labels,
     }
 
 

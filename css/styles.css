@@ -201,6 +201,7 @@ body {
 #dataset-size,
 #dataset-input-shape,
 #dataset-label-shape,
+#dataset-num-labels,
 #test-loss,
 #test-accuracy,
 #test-failures,

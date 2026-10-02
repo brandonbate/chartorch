@@ -8,6 +8,7 @@ VIEW = {
     "sample": "image",
     "train_chart": False,
     "test": "failures",
+    "num_labels": 10,
 }
 
 _datasets = {}

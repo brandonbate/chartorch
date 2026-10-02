@@ -10,6 +10,7 @@ VIEW = {
     "sample": "audio",
     "train_chart": False,
     "test": "failures",
+    "num_labels": 35,
 }
 
 LABELS = [
