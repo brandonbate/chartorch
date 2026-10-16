@@ -25,19 +25,23 @@ Before installing Chartorch, ensure your system has the following:
    ```bash
    git clone [https://github.com/brandonbate/chartorch.git](https://github.com/brandonbate/chartorch.git)
    cd chartorch
-
+   ```
+   ```
 2. Create and activate a virtual environment:
    ```bash
    python -m venv venv
    source venv/bin/activate
-
+   ```
+   ```
 3. Install the required dependencies:
    ```bash
    pip install -r requirements.txt
-
+   ```
+   ```
 ### Running the Application
 To run the application locally:
    ```bash
    python app.py
-
+   ```
+```
 Once the server initializes, open your web browser and navigate to: http://localhost:5000
