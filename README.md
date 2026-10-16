@@ -23,7 +23,7 @@ Before installing Chartorch, ensure your system has the following:
 
 1. **Clone the repository:**
    ```bash
-   git clone [https://github.com/brandonbate/chartorch.git](https://github.com/brandonbate/chartorch.git)
+   git clone https://github.com/brandonbate/chartorch.git
    cd chartorch
    ```
 2. Create and activate a virtual environment:
