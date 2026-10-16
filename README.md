@@ -43,5 +43,6 @@ To run the application locally:
    ```bash
    python app.py
    ```
-```
+
+
 Once the server initializes, open your web browser and navigate to: http://localhost:5000
